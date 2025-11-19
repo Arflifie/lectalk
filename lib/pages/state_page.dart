@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lectalk/pages/login_student.dart';
 
 class StateLogin extends StatelessWidget {
   const StateLogin({super.key});
@@ -128,10 +129,18 @@ class StateLogin extends StatelessWidget {
                             width: double.infinity,
                             height: 60,
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const StudentLoginScreen(),
+                                  ),
+                                );
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFE0E0E0),
-                                foregroundColor: Color(0xFF5A5A5A),
+                                foregroundColor: const Color(0xFF5A5A5A),
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
@@ -165,7 +174,7 @@ class CurvedBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF2C3E50)
+      ..color = const Color(0xFF1D3557)
       ..style = PaintingStyle.fill;
 
     final path = Path();
