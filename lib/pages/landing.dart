@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lectalk/pages/state_page.dart';
+import 'package:lectalk/pages/login_student.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -82,7 +82,8 @@ class LoginScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const StateLogin(),
+                                  builder: (context) =>
+                                      const StudentLoginScreen(),
                                 ),
                               );
                             },
