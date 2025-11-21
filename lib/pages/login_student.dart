@@ -213,14 +213,6 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                             ),
 
                             const SizedBox(width: 25),
-
-                            // Facebook Button
-                            _circleIconButton(
-                              icon: Icons.facebook,
-                              iconColor: Colors.white,
-                              bgColor: const Color(0xFF1877F2),
-                              onTap: () {},
-                            ),
                           ],
                         ),
 
