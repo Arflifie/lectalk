@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lectalk/pages/landing.dart';
-import 'package:lectalk/pages/dashboard.dart';
 import 'package:lectalk/pages/chat_page.dart';
-// import 'package:lectalk/pages/landing.dart';
+import 'package:lectalk/pages/chat.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,7 +20,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'SF Pro Display',
       ),
-      home: const ChatPage(),
+      home: const ChatScreen(),
     );
   }
 }
