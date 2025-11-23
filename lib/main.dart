@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lectalk/pages/landing.dart';
+import 'package:lectalk/pages/dashboard.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'SF Pro Display',
       ),
-      home: const LoginScreen(),
+      home: const DashboardPage(),
     );
   }
 }
