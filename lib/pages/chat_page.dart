@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -8,32 +7,10 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
+class _ChatPageState extends State<ChatPage> {
   int _selectedIndex = 0;
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   void _onItemTapped(int index) {
-    _controller.forward().then((_) => _controller.reverse());
     setState(() {
       _selectedIndex = index;
     });
@@ -118,74 +95,39 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
         decoration: BoxDecoration(
           color: const Color(0xFF1A2F4A),
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: const Color(0xFF1E3A5F).withOpacity(0.5),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-              spreadRadius: -5,
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF1E3A5F).withOpacity(0.9),
-                    const Color(0xFF142538).withOpacity(0.95),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 1.5,
-                ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.chat_bubble_rounded,
+                label: 'Chat',
+                index: 0,
+                isSelected: _selectedIndex == 0,
               ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildNavItem(
-                        icon: Icons.chat_bubble_rounded,
-                        label: 'Chat',
-                        index: 0,
-                        isSelected: _selectedIndex == 0,
-                      ),
-                      _buildNavItem(
-                        icon: Icons.school_rounded,
-                        label: 'Lecturer',
-                        index: 1,
-                        isSelected: _selectedIndex == 1,
-                      ),
-                      _buildNavItem(
-                        icon: Icons.dashboard_customize_rounded,
-                        label: 'Template',
-                        index: 2,
-                        isSelected: _selectedIndex == 2,
-                      ),
-                    ],
-                  ),
-                ),
+              _buildNavItem(
+                icon: Icons.school_rounded,
+                label: 'Lecturer',
+                index: 1,
+                isSelected: _selectedIndex == 1,
               ),
-            ),
+              _buildNavItem(
+                icon: Icons.dashboard_customize_rounded,
+                label: 'Template',
+                index: 2,
+                isSelected: _selectedIndex == 2,
+              ),
+            ],
           ),
         ),
       ),
@@ -248,65 +190,28 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () => _onItemTapped(index),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 20 : 12,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [const Color(0xFF4A90E2), const Color(0xFF357ABD)],
-                )
-              : null,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF4A90E2).withOpacity(0.4),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                    spreadRadius: 0,
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: isSelected ? 1.0 : 0.0),
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOutCubic,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 1.0 + (value * 0.1),
-                  child: Icon(icon, color: Colors.white, size: 24),
-                );
-              },
+            Icon(
+              icon,
+              color: isSelected
+                  ? Colors.white
+                  : const Color.fromARGB(255, 77, 136, 212),
+              size: 36,
             ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOutCubic,
-              child: SizedBox(width: isSelected ? 8 : 0),
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOutCubic,
-              child: isSelected
-                  ? Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.3,
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : const Color.fromARGB(255, 77, 136, 212),
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
           ],
         ),
