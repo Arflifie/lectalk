@@ -200,7 +200,7 @@ class _ChatPageState extends State<ChatPage> {
               color: isSelected
                   ? Colors.white
                   : const Color.fromARGB(255, 77, 136, 212),
-              size: 36,
+              size: 30,
             ),
             const SizedBox(height: 4),
             Text(
@@ -209,7 +209,7 @@ class _ChatPageState extends State<ChatPage> {
                 color: isSelected
                     ? Colors.white
                     : const Color.fromARGB(255, 77, 136, 212),
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
