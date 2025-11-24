@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:lectalk/pages/template_page.dart';
+// import 'package:lectalk/pages/template_page.dart';
+import 'package:lectalk/pages/contact_page.dart';
+import 'package:lectalk/pages/settings.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +20,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'SF Pro Display',
       ),
-      home: const TemplatePage(),
+      home: const SettingsPage(),
     );
   }
 }
