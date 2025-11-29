@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
-// import 'package:lectalk/pages/template_page.dart';
+import 'package:lectalk/pages/chat.dart';
+import 'package:lectalk/pages/chat_page.dart';
+import 'package:lectalk/pages/lecturer_chat.dart';
+import 'package:lectalk/pages/lecturer_chat_page.dart';
+import 'package:lectalk/pages/login_student.dart';
+import 'package:lectalk/pages/profil.dart';
+import 'package:lectalk/pages/template_page.dart';
 import 'package:lectalk/pages/contact_page.dart';
+import 'package:lectalk/pages/landing.dart';
 import 'package:lectalk/pages/settings.dart';
 
 void main() {
@@ -20,7 +27,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'SF Pro Display',
       ),
-      home: const SettingsPage(),
+      home: const LecturerChatScreen(),
     );
   }
 }
