@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'SF Pro Display',
       ),
-      home: const SettingsPage(),
+      home: const LecturerDataPage(),
     );
   }
 }
