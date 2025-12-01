@@ -29,8 +29,6 @@ class MyApp extends StatelessWidget {
       ),
 
       home: const LecturerDataPage(),
-
-      home: const LecturerChatScreen(),
     );
   }
 }
