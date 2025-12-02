@@ -1,16 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lectalk/pages/chat.dart';
+import 'package:lectalk/pages/lecturer_chat.dart';
 
-class StudentLoginScreen extends StatefulWidget {
-  const StudentLoginScreen({Key? key}) : super(key: key);
+// Import bagian Supabase
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Mengmabil And Point Supabase CLient suapya bisa terhubung ke supabase
+final supabase = Supabase.instance.client;
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen(Key? key) : super(key: key);
 
   @override
-  State<StudentLoginScreen> createState() => _StudentLoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _StudentLoginScreenState extends State<StudentLoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // Validasi Form menggunakan Alert Dialog
+  void _showError(String message) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Login Error"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -99,7 +126,7 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                         TextField(
                           controller: _usernameController,
                           decoration: InputDecoration(
-                            labelText: "Username / Email",
+                            labelText: "Email",
                             prefixIcon: const Icon(Icons.person_outline),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(15),
@@ -151,7 +178,95 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                           width: double.infinity,
                           height: 55,
                           child: ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () async {
+                              final email = _usernameController.text.trim();
+                              final password = _passwordController.text.trim();
+
+                              // Validasi 1: input tidak boleh kosong
+                              if (email.isEmpty || password.isEmpty) {
+                                _showError(
+                                  "Email dan password tidak boleh kosong.",
+                                );
+                                return;
+                              }
+
+                              // Validasi 2: email harus format benar
+                              if (!email.contains("@")) {
+                                _showError("Format email tidak valid.");
+                                return;
+                              }
+
+                              // Validasi 3: password minimal 8 karakter
+                              if (password.length < 8) {
+                                _showError("Password minimal 8 karakter.");
+                                return;
+                              }
+
+                              try {
+                                // Login ke Supabase
+                                final response = await supabase.auth
+                                    .signInWithPassword(
+                                      email: email,
+                                      password: password,
+                                    );
+
+                                final user = response.user;
+
+                                if (user == null) {
+                                  _showError(
+                                    "Login gagal. Periksa email dan password.",
+                                  );
+                                  return;
+                                }
+
+                                // Ambil role dari user_profiles
+                                final data = await supabase
+                                    .from('user_profiles')
+                                    .select('role')
+                                    .eq('id', user.id)
+                                    .maybeSingle();
+
+                                if (data == null) {
+                                  _showError(
+                                    "Role tidak ditemukan untuk user ini.",
+                                  );
+                                  return;
+                                }
+
+                                // Mengmabil Role
+                                final role = data['role'];
+
+                                // Arahkan sesuai role
+                                if (role == "mahasiswa") {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ChatScreen(),
+                                    ),
+                                  );
+                                } else if (role == "dosen") {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => LecturerChatScreen(),
+                                    ),
+                                  );
+                                } else {
+                                  _showError("Role tidak dikenali: $role");
+                                }
+                              } catch (e) {
+                                if (e.toString().contains(
+                                  "invalid_credentials",
+                                )) {
+                                  _showError("Email atau password salah.");
+                                } else {
+                                  _showError(
+                                    "Terjadi kesalahan. Coba lagi nanti.",
+                                  );
+                                }
+                              }
+                            },
+
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF4A6FA5),
                               shape: RoundedRectangleBorder(
@@ -202,21 +317,21 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
 
                         const SizedBox(height: 25),
 
-                        // Social buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Google Button
-                            _circleIconButton(
-                              imageUrl: "https://www.google.com/favicon.ico",
-                              onTap: () {},
-                            ),
+                        // // Social buttons
+                        // Row(
+                        //   mainAxisAlignment: MainAxisAlignment.center,
+                        //   children: [
+                        //     // Google Button
+                        //     _circleIconButton(
+                        //       imageUrl: "https://www.google.com/favicon.ico",
+                        //       onTap: () {},
+                        //     ),
 
-                            const SizedBox(width: 25),
-                          ],
-                        ),
+                        //     const SizedBox(width: 25),
+                        //   ],
+                        // ),
 
-                        const SizedBox(height: 20),
+                        // const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -229,30 +344,30 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
     );
   }
 
-  Widget _circleIconButton({
-    String? imageUrl,
-    IconData? icon,
-    Color bgColor = Colors.white,
-    Color iconColor = Colors.black87,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(30),
-      onTap: onTap,
-      child: Container(
-        width: 55,
-        height: 55,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: bgColor,
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-        ),
-        child: Center(
-          child: imageUrl != null
-              ? Image.network(imageUrl, width: 24, height: 24)
-              : Icon(icon, size: 30, color: iconColor),
-        ),
-      ),
-    );
-  }
+  // Widget _circleIconButton({
+  //   String? imageUrl,
+  //   IconData? icon,
+  //   Color bgColor = Colors.white,
+  //   Color iconColor = Colors.black87,
+  //   required VoidCallback onTap,
+  // }) {
+  //   return InkWell(
+  //     borderRadius: BorderRadius.circular(30),
+  //     onTap: onTap,
+  //     child: Container(
+  //       width: 55,
+  //       height: 55,
+  //       decoration: BoxDecoration(
+  //         shape: BoxShape.circle,
+  //         color: bgColor,
+  //         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+  //       ),
+  //       child: Center(
+  //         child: imageUrl != null
+  //             ? Image.network(imageUrl, width: 24, height: 24)
+  //             : Icon(icon, size: 30, color: iconColor),
+  //       ),
+  //     ),
+  //   );
+  // }
 }

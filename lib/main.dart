@@ -1,17 +1,8 @@
 import 'package:flutter/material.dart';
+// import 'package:lectalk/pages/landing.dart';
+import 'package:lectalk/pages/login_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-import 'package:lectalk/pages/chat.dart';
-import 'package:lectalk/pages/chat_page.dart';
-import 'package:lectalk/pages/lecturer_chat.dart';
-import 'package:lectalk/pages/lecturer_chat_page.dart';
-import 'package:lectalk/pages/login_student.dart';
-import 'package:lectalk/pages/profil.dart';
-import 'package:lectalk/pages/template_page.dart';
-import 'package:lectalk/pages/contact_page.dart';
-import 'package:lectalk/pages/landing.dart';
-import 'package:lectalk/pages/settings.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +30,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'SF Pro Display',
       ),
 
-      home: const LecturerDataPage(),
+      home: const LoginScreen(null),
     );
   }
 }
