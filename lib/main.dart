@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lectalk/pages/dosen/dosen_contact_mahasiswa.dart';
 import 'package:lectalk/pages/landing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -29,7 +30,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'SF Pro Display',
       ),
 
-      home: const LandingScreen(),
+      home: const MahasiswaDataContact(),
     );
   }
 }
