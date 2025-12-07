@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lectalk/pages/chat.dart';
-import 'package:lectalk/pages/lecturer_chat.dart';
+import 'package:lectalk/pages/mahasiswa/mahasiswa_chatting.dart';
+import 'package:lectalk/pages/dosen/dosen_chat_mahasiwa.dart';
 
 // Import bagian Supabase
 import 'package:supabase_flutter/supabase_flutter.dart';

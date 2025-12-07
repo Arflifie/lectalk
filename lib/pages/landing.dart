@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lectalk/pages/login_page.dart';
+import 'package:lectalk/pages/auth/login_page.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});

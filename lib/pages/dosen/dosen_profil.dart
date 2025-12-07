@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lectalk/pages/profil_edit.dart';
+import 'package:lectalk/pages/mahasiswa/mahasiswa_profil_edit.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});

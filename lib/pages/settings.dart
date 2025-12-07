@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lectalk/pages/profil.dart';
+import 'package:lectalk/pages/mahasiswa/mahasiswa_profil.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
