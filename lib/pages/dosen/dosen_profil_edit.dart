@@ -8,15 +8,16 @@ class EditProfileDosenPage extends StatefulWidget {
 }
 
 class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
+  // Warna Utama
+  static const Color primaryColor = Color(0xFF1E3A5F); // Biru Tua
+  static const Color accentColor = Color(0xFF4A749B); // Biru Agak Soft
+
   // Controller dengan data awal sesuai gambar
   final TextEditingController _nameController = TextEditingController(
-    text: "Taufiqurahman",
+    text: "Erik Matahir",
   );
   final TextEditingController _idController = TextEditingController(
-    text: "F1E130500",
-  );
-  final TextEditingController _instituteController = TextEditingController(
-    text: "Universitas Jambi",
+    text: "123474774",
   );
   final TextEditingController _facultyController = TextEditingController(
     text: "Sains and Technology",
@@ -24,22 +25,29 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
   final TextEditingController _studyController = TextEditingController(
     text: "Information System",
   );
-  final TextEditingController _yearController = TextEditingController(
-    text: "2030",
-  );
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _idController.dispose();
+    _facultyController.dispose();
+    _studyController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     // Mengambil ukuran layar
     final size = MediaQuery.of(context).size;
-    final double headerHeight = size.height * 0.25; // Tinggi header biru
+    final double headerHeight =
+        size.height * 0.28; // Header dibuat sedikit lebih tinggi
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E3A5F), // Background Biru Tua
+      backgroundColor: primaryColor,
       body: Stack(
         alignment: Alignment.topCenter,
         children: [
-          // --- 1. Header Area (Tombol Back & Teks Profil) ---
+          // --- 1. Header Area (Tombol Back & Judul) ---
           Positioned(
             top: 0,
             left: 0,
@@ -52,25 +60,26 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
                   vertical: 10,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     IconButton(
                       icon: const Icon(
-                        Icons.arrow_back,
+                        Icons.arrow_back_ios, // Ikon lebih modern
                         color: Colors.white,
-                        size: 32,
+                        size: 28,
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
+                    const SizedBox(width: 10),
+                    // Judul dibuat lebih besar, bold, dan rata kiri
                     const Padding(
                       padding: EdgeInsets.only(top: 10),
                       child: Text(
-                        'Profil',
+                        'Edit Profil Dosen', // Judul lebih jelas
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w300,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -80,12 +89,10 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
             ),
           ),
 
-          // --- 2. White Body Container ---
+          // --- 2. White Body Container (Konten Form) ---
           Container(
-            margin: EdgeInsets.only(
-              top: headerHeight - 40,
-            ), // Naik sedikit agar rounded terlihat
-            height: size.height,
+            margin: EdgeInsets.only(top: headerHeight - 40),
+            height: size.height - (headerHeight - 40),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.only(
@@ -95,52 +102,52 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
             ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
-                25,
-                80,
-                25,
-                30,
-              ), // Top padding besar untuk foto
+                20,
+                120, // Top padding lebih besar untuk foto
+                20,
+                20,
+              ),
               child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.stretch, // Agar form melebar penuh
                 children: [
                   // Form Fields
-                  _buildCustomTextField("Name", _nameController),
-                  const SizedBox(height: 15),
-                  _buildCustomTextField("ID", _idController),
-                  const SizedBox(height: 15),
-                  _buildCustomTextField("Institute", _instituteController),
-                  const SizedBox(height: 15),
-                  _buildCustomTextField("Faculty", _facultyController),
-                  const SizedBox(height: 15),
-                  _buildCustomTextField("Study Program", _studyController),
-                  const SizedBox(height: 15),
-                  _buildCustomTextField("Admission Year", _yearController),
+                  _buildCustomTextField("Nama Dosen", _nameController),
+                  const SizedBox(height: 20),
+                  _buildCustomTextField("NIP", _idController, isNumeric: true),
+                  const SizedBox(height: 20),
+                  _buildCustomTextField("Fakultas", _facultyController),
+                  const SizedBox(height: 20),
+                  _buildCustomTextField("Program Studi", _studyController),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 50),
 
                   // Save Button
                   SizedBox(
-                    width: 200,
-                    height: 50,
+                    height: 55, // Tinggi tombol sedikit lebih besar
                     child: ElevatedButton(
                       onPressed: () {
                         // Logic Simpan Data
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(
-                          0xFF4A749B,
-                        ), // Warna biru agak soft sesuai gambar
+                        backgroundColor:
+                            primaryColor, // Menggunakan warna biru tua yang kuat
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(
+                            30,
+                          ), // Rounded lebih penuh
                         ),
-                        elevation: 2,
+                        elevation: 5,
+                        shadowColor: primaryColor.withOpacity(0.4),
                       ),
                       child: const Text(
-                        "Save",
+                        "Simpan Perubahan",
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.8,
                         ),
                       ),
                     ),
@@ -157,21 +164,23 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
               children: [
                 // Foto Lingkaran
                 Container(
-                  width: 130,
-                  height: 130,
+                  width: 140, // Foto sedikit lebih besar
+                  height: 140,
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: Colors.grey.shade300, // Warna abu-abu placeholder
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: Colors.white,
-                      width: 4,
-                    ), // Border putih tebal
-                    image: const DecorationImage(
-                      image: AssetImage(
-                        'assets/profile_pic.png',
-                      ), // Ganti aset Anda
-                      fit: BoxFit.cover,
+                      width: 5, // Border putih lebih tebal
                     ),
+                    // Jika Anda sudah punya aset, ganti dengan Image.asset atau NetworkImage
+                    image:
+                        null, // Dihapus untuk menghindari error AssetNotFound
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    size: 80,
+                    color: Color(0xFF6C7E90),
                   ),
                 ),
                 // Ikon Kamera
@@ -179,13 +188,18 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
                   bottom: 0,
                   right: 0,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10), // Padding lebih besar
                     decoration: BoxDecoration(
-                      color: const Color(
-                        0xFF6C7E90,
-                      ), // Warna abu-biru icon kamera
+                      color: accentColor, // Menggunakan warna aksen biru soft
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 5,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: const Icon(
                       Icons.camera_alt_outlined,
@@ -202,46 +216,79 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
     );
   }
 
-  // --- Widget Helper untuk Input Field Custom ---
-  Widget _buildCustomTextField(String label, TextEditingController controller) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade500,
-          width: 1.5,
-        ), // Border abu-abu tegas
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Label Kecil di Atas
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
+  // --- Widget Helper untuk Input Field Custom (Diupgrade) ---
+  Widget _buildCustomTextField(
+    String label,
+    TextEditingController controller, {
+    bool isNumeric = false,
+  }) {
+    // Menggunakan FocusNode untuk mendeteksi fokus (efek modern)
+    final FocusNode focusNode = FocusNode();
+
+    // Memberi status fokus pada State
+    bool isFocused = false;
+
+    return StatefulBuilder(
+      builder: (context, setInnerState) {
+        focusNode.addListener(() {
+          setInnerState(() {
+            isFocused = focusNode.hasFocus;
+          });
+        });
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              // Border berubah warna ketika fokus
+              color: isFocused ? primaryColor : Colors.grey.shade300,
+              width: isFocused ? 2.0 : 1.0,
             ),
+            boxShadow: [
+              if (isFocused)
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+            ],
           ),
-          // Input Field
-          TextField(
-            controller: controller,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold, // Teks input tebal sesuai gambar
-              color: Color(0xFF333333),
-            ),
-            decoration: const InputDecoration(
-              isDense: true, // Merapatkan jarak vertikal
-              contentPadding: EdgeInsets.only(top: 4, bottom: 4),
-              border: InputBorder.none, // Hilangkan border bawaan TextField
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Label Kecil di Atas
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isFocused ? primaryColor : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              // Input Field
+              TextField(
+                controller: controller,
+                focusNode: focusNode,
+                keyboardType: isNumeric
+                    ? TextInputType.number
+                    : TextInputType.text,
+                style: const TextStyle(
+                  fontSize: 17, // Ukuran font sedikit diperbesar
+                  fontWeight: FontWeight.w700, // Teks input lebih tebal
+                  color: Color(0xFF333333),
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.only(top: 4, bottom: 4),
+                  border: InputBorder.none,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

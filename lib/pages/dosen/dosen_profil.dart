@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lectalk/pages/dosen/dosen_chat_page.dart';
 import 'package:lectalk/pages/dosen/dosen_contact_mahasiswa.dart';
-import 'package:lectalk/pages/mahasiswa/mahasiswa_profil_edit.dart';
+import 'package:lectalk/pages/dosen/dosen_profil_edit.dart';
 
 // Diubah menjadi StatefulWidget
 class ProfileDosenPage extends StatefulWidget {
@@ -216,7 +216,7 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: const [
                                   Text(
-                                    'Jambi University',
+                                    'Universitas Jambi',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
@@ -294,6 +294,7 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                           ),
                         ),
                         const SizedBox(width: 15),
+
                         // Tombol Edit
                         // REVISI: Menggunakan ElevatedButton untuk konsistensi
                         ElevatedButton(
@@ -301,7 +302,8 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const EditProfilePage(),
+                                builder: (context) =>
+                                    const EditProfileDosenPage(),
                               ),
                             );
                           },
