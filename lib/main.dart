@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lectalk/pages/dosen/dosen_profil.dart';
+import 'package:lectalk/pages/dosen/dosen_chat_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'SF Pro Display',
       ),
 
-      home: const ProfileDosenPage(),
+      home: const LecturerChatPage(),
     );
   }
 }

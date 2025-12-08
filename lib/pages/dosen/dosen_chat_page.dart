@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+// Import halaman tujuan yang diperlukan untuk navigasi
+import 'package:lectalk/pages/dosen/dosen_contact_mahasiswa.dart';
+import 'package:lectalk/pages/dosen/dosen_profil.dart';
 
 class LecturerChatPage extends StatefulWidget {
   const LecturerChatPage({super.key});
@@ -8,12 +11,131 @@ class LecturerChatPage extends StatefulWidget {
 }
 
 class _LecturerChatPageState extends State<LecturerChatPage> {
+  // Index 0 untuk Chat
   int _selectedIndex = 0;
 
   void _onItemTapped(int index) {
+    if (_selectedIndex == index) return;
+
     setState(() {
       _selectedIndex = index;
     });
+
+    // Navigasi ke halaman lain berdasarkan index
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MahasiswaDataContact()),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileDosenPage()),
+        );
+        break;
+    }
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isSelected,
+  }) {
+    return InkWell(
+      onTap: () => _onItemTapped(index),
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? Colors.white
+                  : const Color.fromARGB(255, 77, 136, 212),
+              size: 30,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : const Color.fromARGB(255, 77, 136, 212),
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatItem({
+    required String name,
+    required String nim,
+    required String message,
+    required String time,
+    required String avatar,
+  }) {
+    // ... (Tidak ada perubahan pada widget chat item)
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.grey[300],
+            child: Icon(Icons.person, size: 35, color: Colors.grey[600]),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'NIM: $nim',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  message,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Text(time, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        ],
+      ),
+    );
   }
 
   @override
@@ -21,22 +143,27 @@ class _LecturerChatPageState extends State<LecturerChatPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A5F),
       appBar: AppBar(
+        // REVISI: Mengatur leading menjadi null untuk menghapus tombol back (jika ada)
+        leading: null,
+        automaticallyImplyLeading:
+            false, // Memastikan tombol back bawaan tidak muncul
         backgroundColor: const Color(0xFF1E3A5F),
         elevation: 0,
+
+        // REVISI: Mengubah judul, memperbesar, dan menjadikannya bold
         title: const Text(
-          'Home',
+          'Lectalk', // Judul diubah menjadi 'Lectalk'
           style: TextStyle(
-            color: Colors.white70,
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
+            color: Colors.white, // Warna dibuat lebih solid
+            fontSize: 28, // Ukuran diperbesar
+            fontWeight: FontWeight.bold, // Dibuat bold
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
+
+        // REVISI: Mengatur rata kiri
+        titleSpacing: 20.0, // Memberi sedikit padding dari kiri
+        // REVISI: Menghapus seluruh bagian actions (hamburger menu)
+        actions: const [],
       ),
       body: Column(
         children: [
@@ -139,115 +266,18 @@ class _LecturerChatPageState extends State<LecturerChatPage> {
               ),
               _buildNavItem(
                 icon: Icons.school_rounded,
-                label: 'Students',
+                label: 'Mahasiswa',
                 index: 1,
                 isSelected: _selectedIndex == 1,
               ),
               _buildNavItem(
-                icon: Icons.dashboard_customize_rounded,
-                label: 'Schedule',
+                icon: Icons.person_rounded,
+                label: 'Profil',
                 index: 2,
                 isSelected: _selectedIndex == 2,
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChatItem({
-    required String name,
-    required String nim,
-    required String message,
-    required String time,
-    required String avatar,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.grey[300],
-            child: Icon(Icons.person, size: 35, color: Colors.grey[600]),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'NIM: $nim',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  message,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Text(time, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-    required bool isSelected,
-  }) {
-    return GestureDetector(
-      onTap: () => _onItemTapped(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? Colors.white
-                  : const Color.fromARGB(255, 77, 136, 212),
-              size: 30,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : const Color.fromARGB(255, 77, 136, 212),
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
         ),
       ),
     );
