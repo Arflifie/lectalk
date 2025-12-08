@@ -1,9 +1,10 @@
-import 'dart:io'; // Untuk File
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:image_picker/image_picker.dart'; // Untuk memilih gambar
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // Impor kIsWeb
 
-// Akses Supabase Client
 final supabase = Supabase.instance.client;
 
 class EditProfileDosenPage extends StatefulWidget {
@@ -14,25 +15,24 @@ class EditProfileDosenPage extends StatefulWidget {
 }
 
 class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
-  // Warna Utama
   static const Color primaryColor = Color(0xFF1E3A5F);
   static const Color accentColor = Color(0xFF4A749B);
 
-  // Controller
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _facultyController = TextEditingController();
   final TextEditingController _studyController = TextEditingController();
 
-  // NEW STATE: Untuk Foto dan Loading
-  File? _photoFile;
-  String? _currentPhotoUrl; // URL foto yang sudah ada di Supabase
+  // State baru untuk foto
+  XFile? _pickedFile;
+  Uint8List? _pickedImageBytes; // Untuk web display
+  String? _currentPhotoUrl;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile(); // Muat data profil saat halaman dimuat
+    _loadProfile();
   }
 
   @override
@@ -46,13 +46,12 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
 
   // --- LOGIC UTAMA ---
 
-  // 1. Muat Data Profil yang Sudah Ada
   Future<void> _loadProfile() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
 
     setState(() => _isLoading = true);
-
+    // ... (logic load profile sama)
     try {
       final data = await supabase
           .from('dosen_profile')
@@ -60,7 +59,7 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
             'nama_dosen, nip_dosen, fakultas_dosen, prodi_dosen, foto_dosen',
           )
           .eq('id', userId)
-          .maybeSingle(); // Pakai maybeSingle untuk menangani kasus data belum ada
+          .maybeSingle();
 
       if (data != null) {
         _nameController.text = data['nama_dosen'] ?? '';
@@ -76,96 +75,94 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
     }
   }
 
-  // 2. Pilih Gambar dari Galeri
+  // REVISI: Menggunakan XFile dan membaca bytes untuk web
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
+    final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70, // Kompresi gambar
+      imageQuality: 70,
       maxWidth: 1000,
       maxHeight: 1000,
     );
 
-    if (pickedFile != null) {
+    if (picked != null) {
       setState(() {
-        _photoFile = File(pickedFile.path);
+        _pickedFile = picked;
+
+        if (kIsWeb) {
+          picked.readAsBytes().then((bytes) {
+            setState(() {
+              _pickedImageBytes = bytes;
+            });
+          });
+        }
       });
     }
   }
 
-  // 3. Upload Foto ke Supabase Storage
-  Future<String?> _uploadPhoto(File file, String userId) async {
+  // REVISI: Menerima data dinamis (File atau Uint8List)
+  Future<String?> _uploadPhoto(dynamic fileOrBytes, String userId) async {
     try {
-      final fileExt = file.path.split('.').last;
-      // Gunakan ID Dosen sebagai nama file untuk menimpa file lama (upsert)
+      final fileExt = kIsWeb
+          ? _pickedFile!.name.split('.').last
+          : (fileOrBytes as File).path.split('.').last;
+
       final fileName = '$userId.$fileExt';
       final filePath = 'dosen_photos/$fileName';
 
-      // Upload file ke bucket 'image_dosen'
+      // Menggunakan uploadBinary yang mendukung File (Mobile) dan Uint8List (Web)
       await supabase.storage
           .from('image_dosen')
-          .upload(
+          .uploadBinary(
             filePath,
-            file,
-            fileOptions: const FileOptions(
-              cacheControl: '3600',
-              upsert: true, // WAJIB: Menimpa file lama jika nama file sama
-            ),
+            fileOrBytes,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
           );
 
-      // Ambil Public URL setelah upload
       final publicUrl = supabase.storage
           .from('image_dosen')
           .getPublicUrl(filePath);
       return publicUrl;
+    } on StorageException catch (e) {
+      _showSnackBar("Gagal mengunggah foto (Storage Error: ${e.message}).");
+      return null;
     } catch (e) {
-      _showSnackBar("Gagal mengunggah foto: $e");
+      _showSnackBar("Gagal mengunggah foto: ${e.toString()}");
       return null;
     }
   }
 
-  // 4. UPSERT Data Profil ke Database
+  // ... (_upsertProfile tidak berubah) ...
+
   Future<void> _upsertProfile(String? photoUrl) async {
     final userId = supabase.auth.currentUser?.id;
-
     if (userId == null) {
       _showSnackBar("Autentikasi gagal. Silakan login kembali.");
       return;
     }
-
     final dataToUpsert = {
-      'id': userId, // Kunci Utama (Primary Key & Foreign Key)
+      'id': userId,
       'nama_dosen': _nameController.text.trim(),
       'nip_dosen': _idController.text.trim(),
       'fakultas_dosen': _facultyController.text.trim(),
       'prodi_dosen': _studyController.text.trim(),
-      // Hanya masukkan 'foto_dosen' jika ada URL baru dari hasil upload
       if (photoUrl != null) 'foto_dosen': photoUrl,
     };
-
     try {
       await supabase.from('dosen_profile').upsert(dataToUpsert);
-
       _showSnackBar("Profil berhasil diperbarui!", isError: false);
-
       if (photoUrl != null) {
         setState(() => _currentPhotoUrl = photoUrl);
       }
       Navigator.pop(context);
     } on PostgrestException catch (e) {
-      String errorMessage = "Gagal menyimpan data.";
-
-      // Error code Supabase untuk pelanggaran batasan unik/NOT NULL
-      if (e.code == '23502') {
-        // Pelanggaran NOT NULL (semua kolom NOT NULL harus diisi)
-        errorMessage = "Gagal: Pastikan semua kolom terisi dengan benar.";
-      } else if (e.code == '23505') {
-        // Pelanggaran Unique (NIP sudah ada)
+      // ... (Error handling sama)
+      String errorMessage = "Gagal menyimpan data: ${e.message}";
+      if (e.code == '23505') {
         errorMessage =
             "NIP yang Anda masukkan sudah digunakan oleh dosen lain.";
-      } else {
-        // Tampilkan error yang lebih detail jika bukan kode umum
-        errorMessage = "Gagal menyimpan data: ${e.message}";
+      } else if (e.code == '23502') {
+        errorMessage = "Gagal: Pastikan semua kolom terisi dengan benar.";
       }
       _showSnackBar(errorMessage);
     } catch (e) {
@@ -173,9 +170,8 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
     }
   }
 
-  // 5. Fungsi Gabungan (Tombol Submit)
+  // REVISI: Menggunakan _pickedFile
   Future<void> _handleSave() async {
-    // Validasi input di sisi klien: cek apakah semua kolom NOT NULL terisi
     if (_nameController.text.trim().isEmpty ||
         _idController.text.trim().isEmpty ||
         _facultyController.text.trim().isEmpty ||
@@ -190,11 +186,15 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
 
     String? photoUrl;
 
-    // 1. Cek dan Upload Foto
-    if (_photoFile != null) {
+    if (_pickedFile != null) {
       final userId = supabase.auth.currentUser?.id;
       if (userId != null) {
-        photoUrl = await _uploadPhoto(_photoFile!, userId);
+        // Tentukan data yang akan diupload
+        final fileData = kIsWeb
+            ? _pickedImageBytes! // Uint8List untuk Web
+            : File(_pickedFile!.path); // File untuk Mobile
+
+        photoUrl = await _uploadPhoto(fileData, userId);
         if (photoUrl == null) {
           setState(() => _isLoading = false);
           return;
@@ -202,9 +202,7 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
       }
     }
 
-    // 2. UPSERT Data Profil
     await _upsertProfile(photoUrl);
-
     setState(() => _isLoading = false);
   }
 
@@ -299,15 +297,31 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
     final size = MediaQuery.of(context).size;
     final double headerHeight = size.height * 0.28;
 
-    // Menentukan widget gambar yang akan ditampilkan
+    // REVISI UTAMA: Logika Widget Gambar
     Widget profileImageWidget;
-    if (_photoFile != null) {
-      profileImageWidget = Image.file(_photoFile!, fit: BoxFit.cover);
+
+    if (_pickedFile != null) {
+      if (kIsWeb && _pickedImageBytes != null) {
+        profileImageWidget = Image.memory(
+          _pickedImageBytes!,
+          fit: BoxFit.cover,
+        );
+      } else if (!kIsWeb) {
+        profileImageWidget = Image.file(
+          File(_pickedFile!.path),
+          fit: BoxFit.cover,
+        );
+      } else {
+        profileImageWidget = const Icon(
+          Icons.person_rounded,
+          size: 80,
+          color: Color(0xFF6C7E90),
+        );
+      }
     } else if (_currentPhotoUrl != null) {
       profileImageWidget = Image.network(
         _currentPhotoUrl!,
         fit: BoxFit.cover,
-        // Handler jika URL gambar tidak valid atau gagal dimuat
         errorBuilder: (context, error, stackTrace) => const Icon(
           Icons.person_rounded,
           size: 80,
@@ -322,12 +336,14 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
       );
     }
 
+    // ... (rest of the build method is largely the same, but now uses profileImageWidget) ...
+
     return Scaffold(
       backgroundColor: primaryColor,
       body: Stack(
         alignment: Alignment.topCenter,
         children: [
-          // ... (Header Area - Tidak Berubah) ...
+          // ... (Header Area) ...
           Positioned(
             top: 0,
             left: 0,
@@ -404,7 +420,6 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
                   SizedBox(
                     height: 55,
                     child: ElevatedButton(
-                      // Menonaktifkan tombol saat loading
                       onPressed: _isLoading ? null : _handleSave,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
@@ -441,7 +456,7 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
             ),
           ),
 
-          // --- 3. Profile Picture & Camera Icon (Diperbarui dengan logika Image) ---
+          // --- 3. Profile Picture & Camera Icon (Menggunakan profileImageWidget) ---
           Positioned(
             top: headerHeight - 90,
             child: Stack(
@@ -464,7 +479,7 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
                   bottom: 0,
                   right: 0,
                   child: GestureDetector(
-                    onTap: _pickImage, // Panggil fungsi _pickImage()
+                    onTap: _pickImage,
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(

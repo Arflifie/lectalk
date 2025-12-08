@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // [1] Tambahkan Supabase
 import 'package:lectalk/pages/dosen/dosen_chat_page.dart';
 import 'package:lectalk/pages/dosen/dosen_contact_mahasiswa.dart';
+// Asumsikan impor untuk halaman edit dosen sudah diperbaiki:
 import 'package:lectalk/pages/dosen/dosen_profil_edit.dart';
+
+// Akses Supabase Client
+final supabase = Supabase.instance.client;
 
 // Diubah menjadi StatefulWidget
 class ProfileDosenPage extends StatefulWidget {
@@ -12,21 +17,65 @@ class ProfileDosenPage extends StatefulWidget {
 }
 
 class _ProfileDosenPageState extends State<ProfileDosenPage> {
+  // [2] State untuk Data Profil
+  Map<String, dynamic>? _dosenProfile;
+  bool _isLoading = true;
+  String _error = '';
+
   int _selectedIndex = 2; // Tab aktif: Profil (index 2)
 
-  // Tinggi area header biru
   final double _headerHeight = 0.35;
-  // Radius tikungan container putih dan navbar
   final double _borderRadius = 35.0;
 
+  @override
+  void initState() {
+    super.initState();
+    // [3] Muat data saat halaman pertama kali dibuka
+    _loadProfileData();
+  }
+
+  // [4] Fungsi untuk Mengambil Data Profil
+  Future<void> _loadProfileData() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) {
+      setState(() {
+        _isLoading = false;
+        _error = 'User belum login.';
+      });
+      return;
+    }
+
+    try {
+      final data = await supabase
+          .from('dosen_profile')
+          .select(
+            'nama_dosen, nip_dosen, fakultas_dosen, prodi_dosen, foto_dosen',
+          )
+          .eq('id', userId)
+          .maybeSingle();
+
+      setState(() {
+        _dosenProfile = data;
+        _isLoading = false;
+        _error = (data == null)
+            ? 'Profil belum diisi. Silakan edit profil.'
+            : '';
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Gagal memuat data: ${e.toString()}';
+      });
+    }
+  }
+
   void _onItemTapped(int index) {
-    if (_selectedIndex == index) return; // Tidak perlu navigasi jika index sama
+    if (_selectedIndex == index) return;
 
     setState(() {
       _selectedIndex = index;
     });
 
-    // Navigasi ke halaman lain berdasarkan index
     switch (index) {
       case 0:
         Navigator.pushReplacement(
@@ -41,19 +90,18 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
         );
         break;
       case 2:
-        // Sudah di halaman Profil, tidak perlu navigasi
         break;
     }
   }
 
-  // Widget Navbar Item
+  // Widget Navbar Item (tidak berubah)
   Widget _buildNavItem({
     required IconData icon,
     required String label,
     required int index,
     required bool isSelected,
   }) {
-    // REVISI: Menggunakan InkWell untuk feedback visual yang lebih baik
+    // ... (kode _buildNavItem sama) ...
     return InkWell(
       onTap: () => _onItemTapped(index),
       borderRadius: BorderRadius.circular(20),
@@ -76,7 +124,7 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                 color: isSelected
                     ? Colors.white
                     : const Color.fromARGB(255, 77, 136, 212),
-                fontSize: 12, // Dibuat sedikit lebih kecil agar lebih rapi
+                fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
@@ -89,40 +137,64 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    // Jarak foto profil dari atas (di tengah area biru)
     final double profilePicTop = size.height * _headerHeight - (100 / 2);
-    // Tinggi area card content yang putih
-    final double whiteContentHeight = size.height * (1.0 - _headerHeight) + 50;
-
-    // Ukuran Foto Profil
     const double profilePicSize = 100;
+
+    // [5] Tampilkan Loading atau Error
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_error.isNotEmpty && _dosenProfile == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(_error),
+              TextButton(
+                onPressed: _loadProfileData,
+                child: const Text('Coba Lagi'),
+              ),
+              const SizedBox(height: 100), // Spacer untuk navbar
+            ],
+          ),
+        ),
+        // [6] Memastikan Navbar tetap tampil
+        bottomNavigationBar: _buildNavbar(context),
+      );
+    }
+
+    // Default values jika _dosenProfile null (meski sudah dicek)
+    final namaDosen = _dosenProfile?['nama_dosen'] ?? 'Nama Belum Diisi';
+    final nipDosen = _dosenProfile?['nip_dosen'] ?? 'NIP Belum Diisi';
+    final prodiDosen = _dosenProfile?['prodi_dosen'] ?? 'Prodi Belum Diisi';
+    final fakultasDosen =
+        _dosenProfile?['fakultas_dosen'] ?? 'Fakultas Belum Diisi';
+    final fotoDosenUrl = _dosenProfile?['foto_dosen'];
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // --- 1. Background Biru Tua di Atas ---
+          // --- 1. Background Biru Tua di Atas --- (Tidak Berubah)
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: Container(
               height: size.height * _headerHeight,
-              color: const Color(0xFF1E3A5F), // Background Biru Tua Utama
+              color: const Color(0xFF1E3A5F),
             ),
           ),
 
-          // --- 2. Konten Utama (SingleChildScrollView) ---
-          // Menggunakan Positioned untuk area konten putih agar tata letak lebih terstruktur
+          // --- 2. Konten Utama --- (Tidak Berubah strukturnya)
           Positioned(
-            top:
-                size.height * _headerHeight -
-                _borderRadius, // Dimulai sedikit di atas area transisi
+            top: size.height * _headerHeight - _borderRadius,
             left: 0,
             right: 0,
             child: Container(
-              height:
-                  whiteContentHeight, // Tinggi yang cukup untuk semua konten
+              // ... (styling container)
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
@@ -131,21 +203,19 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                 ),
               ),
               child: SingleChildScrollView(
-                // Tambahkan padding vertikal di sini
                 padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
                 child: Column(
                   children: [
-                    // Padding atas yang menutupi bagian lengkungan putih + space untuk foto yang menjorok
                     SizedBox(height: _borderRadius + profilePicSize / 2),
 
                     // --- KARTU 1: DATA DOSEN (Biru Gelap) ---
-                    // REVISI: Padding atas dikurangi karena foto sudah di atasnya
                     Container(
+                      // ... (styling container)
                       width: double.infinity,
                       padding: const EdgeInsets.all(30),
                       margin: const EdgeInsets.only(
                         top: profilePicSize / 2 - 30,
-                      ), // Menggeser kartu ke atas sedikit
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF3F566D),
                         borderRadius: BorderRadius.circular(20),
@@ -158,20 +228,22 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                         ],
                       ),
                       child: Column(
-                        children: const [
+                        children: [
+                          // [7] Tampilkan NAMA DOSEN
                           Text(
-                            'Erick Matahir',
-                            style: TextStyle(
+                            namaDosen,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               letterSpacing: 0.5,
                             ),
                           ),
-                          SizedBox(height: 5),
+                          const SizedBox(height: 5),
+                          // [8] Tampilkan NIP DOSEN
                           Text(
-                            '139099401',
-                            style: TextStyle(
+                            nipDosen,
+                            style: const TextStyle(
                               fontSize: 14,
                               color: Colors.white70,
                               fontWeight: FontWeight.w300,
@@ -203,13 +275,17 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                       ),
                       child: Column(
                         children: [
+                          // Universitas Jambi (tetap)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
-                                Icons.security,
-                                color: Colors.orange,
-                                size: 40,
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: Image.network(
+                                  'https://www.unja.ac.id/wp-content/uploads/2025/06/cropped-logoUNJA-2.png',
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                               const SizedBox(width: 10),
                               Column(
@@ -223,8 +299,9 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                                       color: Color(0xFF444444),
                                     ),
                                   ),
+                                  // [9] Ganti Science and Technology Faculty
                                   Text(
-                                    'Sains and technology Faculty',
+                                    'A World Class Enterpreunership University',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey,
@@ -237,18 +314,20 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                           const SizedBox(height: 15),
                           Divider(color: Colors.grey[400], thickness: 1.5),
                           const SizedBox(height: 15),
-                          const Text(
-                            'Information System',
-                            style: TextStyle(
+                          // [10] Tampilkan PROGRAM STUDI
+                          Text(
+                            prodiDosen,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF555555),
                             ),
                           ),
                           const SizedBox(height: 5),
-                          const Text(
-                            '2030',
-                            style: TextStyle(
+                          // [11] Ganti Angka 2030 menjadi FAKULTAS
+                          Text(
+                            fakultasDosen,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w300,
                               color: Colors.grey,
@@ -263,7 +342,7 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                     // --- TOMBOL BAWAH (Logout & Edit) ---
                     Row(
                       children: [
-                        // Tombol Logout
+                        // ... (Tombol Logout) ...
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {},
@@ -281,11 +360,8 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                                 227,
                                 16,
                                 9,
-                              ), // Warna merah
-                              padding: const EdgeInsets.symmetric(
-                                vertical:
-                                    20, // REVISI: Dibuat sedikit lebih kecil
                               ),
+                              padding: const EdgeInsets.symmetric(vertical: 20),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15),
                               ),
@@ -294,24 +370,21 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                           ),
                         ),
                         const SizedBox(width: 15),
-
                         // Tombol Edit
-                        // REVISI: Menggunakan ElevatedButton untuk konsistensi
                         ElevatedButton(
                           onPressed: () {
+                            // Panggil _loadProfileData lagi saat kembali
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
                                     const EditProfileDosenPage(),
                               ),
-                            );
+                            ).then((_) => _loadProfileData());
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF5F7C8E),
-                            padding: const EdgeInsets.all(
-                              20,
-                            ), // REVISI: Disesuaikan agar sama dengan tinggi tombol Logout
+                            padding: const EdgeInsets.all(20),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15),
                             ),
@@ -325,30 +398,25 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(
-                      height:
-                          80, // Spasi bawah agar tidak tertutup navbar (lebih ringkas)
-                    ),
+                    const SizedBox(height: 80),
                   ],
                 ),
               ),
             ),
           ),
 
-          // --- 3. FOTO PROFIL (Overlay di tengah transisi) ---
+          // --- 3. FOTO PROFIL ---
           Positioned(
-            top: profilePicTop, // Posisi mutlak di tengah transisi
+            top: profilePicTop,
             left: 0,
             right: 0,
             child: Center(
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color:
-                      Colors.white, // REVISI: Border putih agar lebih menonjol
+                  color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    // Tambahkan sedikit shadow
                     BoxShadow(
                       color: Colors.black.withOpacity(0.2),
                       blurRadius: 5,
@@ -360,69 +428,90 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                   width: profilePicSize,
                   height: profilePicSize,
                   decoration: const BoxDecoration(
-                    color: Colors.red,
+                    color: Color(0xFF6C7E90), // Warna abu-abu default
                     shape: BoxShape.circle,
-                    // Hilangkan 'image: AssetImage()' jika Anda belum menambahkan aset gambar
-                    // Anda bisa tambahkan kembali jika aset 'assets/profile_pic.png' sudah ada.
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 60,
-                    color: Colors.white,
+                  child: ClipOval(
+                    child: fotoDosenUrl != null
+                        ? Image.network(
+                            fotoDosenUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.person,
+                                  size: 60,
+                                  color: Colors.white,
+                                ),
+                          )
+                        : const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.white,
+                          ),
                   ),
                 ),
               ),
             ),
           ),
 
-          // --- 4. Navbar (Diposisikan di atas semua konten) ---
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A2F4A),
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 8,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildNavItem(
-                      icon: Icons.chat_bubble_rounded,
-                      label: 'Chat',
-                      index: 0,
-                      isSelected: _selectedIndex == 0,
-                    ),
-                    _buildNavItem(
-                      icon: Icons.school_rounded,
-                      label: 'Mahasiswa',
-                      index: 1,
-                      isSelected: _selectedIndex == 1,
-                    ),
-                    _buildNavItem(
-                      icon: Icons.person_rounded,
-                      label: 'Profil',
-                      index: 2,
-                      isSelected: _selectedIndex == 2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // --- 4. Navbar ---
+          _buildNavbar(context),
         ],
+      ),
+    );
+  }
+
+  // [6] Helper method untuk Navbar (Dipindahkan)
+  Align _buildNavbar(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A2F4A),
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.chat_bubble_rounded,
+                label: 'Chat',
+                index: 0,
+                isSelected: _selectedIndex == 0,
+              ),
+              _buildNavItem(
+                icon: Icons.school_rounded,
+                label: 'Mahasiswa',
+                index: 1,
+                isSelected: _selectedIndex == 1,
+              ),
+              _buildNavItem(
+                icon: Icons.person_rounded,
+                label: 'Profil',
+                index: 2,
+                isSelected: _selectedIndex == 2,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
