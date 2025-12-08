@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lectalk/pages/dosen/dosen_chat_page.dart';
-import 'package:lectalk/pages/mahasiswa/mahasiswa_chatting.dart';
+// import 'package:lectalk/pages/mahasiswa/mahasiswa_chat_page.dart';
+import 'package:lectalk/pages/mahasiswa/main_layout.dart';
 
 // Import bagian Supabase
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -241,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => ChatScreen(),
+                                      builder: (_) => const MainLayout(),
                                     ),
                                   );
                                 } else if (role == "dosen") {

@@ -1,72 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+// Import Detail Chat
+import 'package:lectalk/pages/mahasiswa/mahasiswa_chatting.dart';
 
-class LecturerDataPage extends StatefulWidget {
+final lecturersProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('user_profiles')
+          .select()
+          .eq('role', 'dosen')
+          .order('created_at');
+      return List<Map<String, dynamic>>.from(response);
+    });
+
+class LecturerDataPage extends ConsumerStatefulWidget {
   const LecturerDataPage({super.key});
 
   @override
-  State<LecturerDataPage> createState() => _LecturerDataPageState();
+  ConsumerState<LecturerDataPage> createState() => _LecturerDataPageState();
 }
 
-class _LecturerDataPageState extends State<LecturerDataPage> {
-  int _selectedIndex = 1; // Tab aktif: Lecturer
-
-  // --- 1. Logic untuk Filter ---
-  int _selectedFilterIndex = 0; // Default terpilih index 0
+class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
+  int _selectedFilterIndex = 0;
+  String _searchQuery = "";
   final List<String> _filters = [
     'All',
-    'Dosen S3',
     'Fakultas Teknik',
     'Sistem Informasi',
     'Manajemen',
   ];
 
-  // Data Dummy
-  final List<Map<String, String>> _lecturers = [
-    {
-      'name': 'Bambang Listiyanto, S.Kom., MSI',
-      'dept': 'Sistem Informasi',
-      'image': 'assets/dosen1.jpg',
-    },
-    {
-      'name': 'Dr. Rina Maharani, M.Pd.',
-      'dept': 'Manajemen Pendidikan',
-      'image': 'assets/dosen2.jpg',
-    },
-    {
-      'name': 'Yusuf Al-Fattah, S.Kom., M.Cs.',
-      'dept': 'Teknik Jaringan',
-      'image': 'assets/dosen3.jpg',
-    },
-    {
-      'name': 'Drs. Andi Permana, M.Si.',
-      'dept': 'Statistika dan Data Science',
-      'image': 'assets/dosen4.jpg',
-    },
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final lecturersAsync = ref.watch(lecturersProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFF1E3A5F),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E3A5F),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {},
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "Lecturer Data",
+          style: TextStyle(color: Colors.white, fontSize: 18),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -82,8 +61,7 @@ class _LecturerDataPageState extends State<LecturerDataPage> {
               child: Column(
                 children: [
                   const SizedBox(height: 20),
-
-                  // Search Bar
+                  // Search
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     child: Container(
@@ -96,24 +74,20 @@ class _LecturerDataPageState extends State<LecturerDataPage> {
                         ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 15),
-                      child: const TextField(
-                        decoration: InputDecoration(
+                      child: TextField(
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value.toLowerCase()),
+                        decoration: const InputDecoration(
                           hintText: 'Search name/NIP',
                           hintStyle: TextStyle(color: Colors.grey),
                           border: InputBorder.none,
-                          suffixIcon: Icon(
-                            Icons.search,
-                            color: Colors.grey,
-                            size: 28,
-                          ),
+                          suffixIcon: Icon(Icons.search, color: Colors.grey),
                         ),
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // --- 2. Filter Chips (Updated) ---
+                  // Filter
                   SizedBox(
                     height: 40,
                     child: ListView.separated(
@@ -123,40 +97,82 @@ class _LecturerDataPageState extends State<LecturerDataPage> {
                       separatorBuilder: (context, index) =>
                           const SizedBox(width: 10),
                       itemBuilder: (context, index) {
-                        return _buildFilterChip(
-                          label: _filters[index],
-                          isSelected: _selectedFilterIndex == index,
-                          onTap: () {
-                            setState(() {
-                              _selectedFilterIndex = index;
-                            });
-                          },
+                        return GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedFilterIndex = index),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _selectedFilterIndex == index
+                                  ? const Color(0xFF1E3A5F).withOpacity(0.1)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: _selectedFilterIndex == index
+                                    ? const Color(0xFF1E3A5F)
+                                    : Colors.grey.shade400,
+                              ),
+                            ),
+                            child: Text(
+                              _filters[index],
+                              style: TextStyle(
+                                color: _selectedFilterIndex == index
+                                    ? const Color(0xFF1E3A5F)
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ),
                         );
                       },
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Grid View
+                  // Grid List
                   Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.only(
-                        left: 20,
-                        right: 20,
-                        bottom: 150,
-                      ),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 15,
-                            mainAxisSpacing: 15,
-                            childAspectRatio:
-                                0.75, // Sedikit lebih tinggi agar layout lega
-                          ),
-                      itemCount: _lecturers.length,
-                      itemBuilder: (context, index) {
-                        return _buildLecturerCard(_lecturers[index]);
+                    child: lecturersAsync.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (err, stack) => Center(child: Text('Error: $err')),
+                      data: (lecturers) {
+                        var filteredList = lecturers
+                            .where(
+                              (l) => (l['full_name'] ?? '')
+                                  .toString()
+                                  .toLowerCase()
+                                  .contains(_searchQuery),
+                            )
+                            .toList();
+                        if (_selectedFilterIndex != 0) {
+                          filteredList = filteredList
+                              .where(
+                                (l) => (l['department'] ?? '')
+                                    .toString()
+                                    .contains(_filters[_selectedFilterIndex]),
+                              )
+                              .toList();
+                        }
+
+                        if (filteredList.isEmpty)
+                          return const Center(
+                            child: Text("Tidak ada dosen ditemukan"),
+                          );
+
+                        return GridView.builder(
+                          padding: const EdgeInsets.all(20),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 15,
+                                mainAxisSpacing: 15,
+                                childAspectRatio: 0.75,
+                              ),
+                          itemCount: filteredList.length,
+                          itemBuilder: (context, index) =>
+                              _buildLecturerCard(context, filteredList[index]),
+                        );
                       },
                     ),
                   ),
@@ -166,95 +182,14 @@ class _LecturerDataPageState extends State<LecturerDataPage> {
           ),
         ],
       ),
-
-      // Navbar (Tetap Sama)
-      extendBody: true,
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A2F4A),
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                icon: Icons.chat_bubble_rounded,
-                label: 'Chat',
-                index: 0,
-                isSelected: _selectedIndex == 0,
-              ),
-              _buildNavItem(
-                icon: Icons.school_rounded,
-                label: 'Lecturer',
-                index: 1,
-                isSelected: _selectedIndex == 1,
-              ),
-              _buildNavItem(
-                icon: Icons.dashboard_customize_rounded,
-                label: 'Template',
-                index: 2,
-                isSelected: _selectedIndex == 2,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
-  // --- Widget Filter Chip yang Bisa Diklik ---
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          // Jika selected: Warna Biru Gelap, Jika tidak: Putih
-          color: isSelected
-              ? const Color(0xFF1E3A5F).withOpacity(0.1)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            // Jika selected: Border Biru, Jika tidak: Abu-abu
-            color: isSelected ? const Color(0xFF1E3A5F) : Colors.grey.shade400,
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            // Jika selected: Text Biru Tebal, Jika tidak: Text Abu
-            color: isSelected ? const Color(0xFF1E3A5F) : Colors.grey.shade600,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- Widget Kartu Dosen yang Diimprovisasi ---
-  Widget _buildLecturerCard(Map<String, String> data) {
+  Widget _buildLecturerCard(BuildContext context, Map<String, dynamic> data) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15), // Rounded lebih halus
+        borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.15),
@@ -265,16 +200,12 @@ class _LecturerDataPageState extends State<LecturerDataPage> {
       ),
       child: Column(
         children: [
-          // HEADER BIRU (Berisi Foto + Icon)
           Expanded(
-            flex: 3, // Proporsi lebih besar untuk area foto
+            flex: 3,
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
-                // Gradient halus agar terlihat modern (opsional, bisa solid color)
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                   colors: [Color(0xFF5B84B1), Color(0xFF4A73A0)],
                 ),
                 borderRadius: BorderRadius.only(
@@ -285,153 +216,86 @@ class _LecturerDataPageState extends State<LecturerDataPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Foto Dosen
                   Container(
                     width: 70,
                     height: 85,
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
-                      image: const DecorationImage(
-                        image: AssetImage(
-                          'assets/placeholder_man.png',
-                        ), // Ganti dengan data['image']
-                        fit: BoxFit.cover,
-                      ),
+                      image: (data['avatar_url'] != null)
+                          ? DecorationImage(
+                              image: NetworkImage(data['avatar_url']),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.grey,
-                    ), // Fallback
+                    child: data['avatar_url'] == null
+                        ? const Icon(Icons.person, color: Colors.grey)
+                        : null,
                   ),
-
                   const Spacer(),
-
-                  // 2. Icon Actions (Column di sebelah kanan)
                   Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      // Tombol Info
-                      _buildCardIconBtn(Icons.info_outline),
+                      const Icon(Icons.info_outline, color: Colors.white),
                       const SizedBox(height: 10),
-                      // Tombol Chat
-                      _buildCardIconBtn(Icons.chat_bubble_outline),
+                      // TOMBOL CHAT
+                      InkWell(
+                        onTap: () {
+                          // PERBAIKAN: Navigasi ke ChatScreen (Detail)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                partnerId: data['id'],
+                                partnerName: data['full_name'] ?? 'Dosen',
+                                partnerAvatar: data['avatar_url'],
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white),
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble_outline,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
           ),
-
-          // BODY PUTIH (Nama & Prodi)
           Expanded(
             flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8),
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    data['name']!,
+                    data['full_name'] ?? 'No Name',
                     textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontFamily: 'Roboto', // Contoh font
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      color: Color(
-                        0xFF1E3A5F,
-                      ), // Warna teks biru tua agar kontras
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Container(
-                    height: 1,
-                    width: 30,
-                    color: Colors.grey.shade300,
-                  ), // Garis pemanis
-                  const SizedBox(height: 4),
                   Text(
-                    data['dept']!,
+                    data['department'] ?? '-',
                     textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Widget Helper untuk Icon Bulat di dalam Kartu
-  Widget _buildCardIconBtn(IconData icon) {
-    return InkWell(
-      onTap: () {}, // Action kosong
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white,
-            width: 1.5,
-          ), // Border putih tegas
-          color: Colors.white.withOpacity(0.1), // Transparan dikit
-        ),
-        child: Icon(icon, color: Colors.white, size: 16),
-      ),
-    );
-  }
-
-  // Widget Navbar Item (Sama)
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-    required bool isSelected,
-  }) {
-    return GestureDetector(
-      onTap: () => _onItemTapped(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? Colors.white
-                  : const Color.fromARGB(255, 77, 136, 212),
-              size: 30,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : const Color.fromARGB(255, 77, 136, 212),
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
