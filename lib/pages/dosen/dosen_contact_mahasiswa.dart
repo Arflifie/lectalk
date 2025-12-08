@@ -42,7 +42,7 @@ class _MahasiswaDataContactState extends State<MahasiswaDataContact> {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => ProfilePage()),
+          MaterialPageRoute(builder: (context) => ProfileDosenPage()),
         );
         break;
     }
