@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // [1] Tambahkan Supabase
+import 'package:lectalk/pages/auth/login_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lectalk/pages/dosen/dosen_chat_page.dart';
 import 'package:lectalk/pages/dosen/dosen_contact_mahasiswa.dart';
 // Asumsikan impor untuk halaman edit dosen sudah diperbaiki:
@@ -66,6 +67,39 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
         _isLoading = false;
         _error = 'Gagal memuat data: ${e.toString()}';
       });
+    }
+  }
+
+  // [BARU] Fungsi untuk menangani Logout
+  Future<void> _handleLogout() async {
+    // 1. Tampilkan loading atau dialog jika perlu (opsional)
+    // showDialog( ... );
+
+    try {
+      // 2. Logout dari Supabase
+      await supabase.auth.signOut();
+
+      // 3. Pastikan widget masih ada sebelum menggunakan context
+      if (!mounted) return;
+
+      // 4. Arahkan pengguna ke halaman LoginScreen, hapus semua route sebelumnya
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          // Pastikan kelas LoginScreen menggunakan Key? key di konstruktor
+          builder: (context) => const LoginScreen(null),
+        ),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      // 5. Tangani error jika gagal logout (jarang terjadi)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal logout: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -345,7 +379,7 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
                         // ... (Tombol Logout) ...
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: _handleLogout,
                             icon: const Icon(Icons.logout, color: Colors.white),
                             label: const Text(
                               'Logout',

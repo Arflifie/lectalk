@@ -289,33 +289,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 35),
 
                         // Divider
-                        Row(
-                          children: const [
-                            Expanded(
-                              child: Divider(
-                                thickness: 1,
-                                color: Color(0xFFCCCCCC),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'Or sign in with',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF777777),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Divider(
-                                thickness: 1,
-                                color: Color(0xFFCCCCCC),
-                              ),
-                            ),
-                          ],
-                        ),
-
+                        // Row(
+                        //   children: const [
+                        //     Expanded(
+                        //       child: Divider(
+                        //         thickness: 1,
+                        //         color: Color(0xFFCCCCCC),
+                        //       ),
+                        //     ),
+                        //     Padding(
+                        //       padding: EdgeInsets.symmetric(horizontal: 12),
+                        //       child: Text(
+                        //         'Or sign in with',
+                        //         style: TextStyle(
+                        //           fontSize: 14,
+                        //           color: Color(0xFF777777),
+                        //         ),
+                        //       ),
+                        //     ),
+                        //     Expanded(
+                        //       child: Divider(
+                        //         thickness: 1,
+                        //         color: Color(0xFFCCCCCC),
+                        //       ),
+                        //     ),
+                        //   ],
+                        // ),
                         const SizedBox(height: 25),
 
                         // // Social buttons
