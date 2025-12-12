@@ -104,6 +104,10 @@ class _MahasiswaDataContactState extends State<MahasiswaDataContact> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E3A5F),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'Kontak Mahasiswa',
           style: TextStyle(
@@ -136,10 +140,14 @@ class _MahasiswaDataContactState extends State<MahasiswaDataContact> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 1.5,
-                        ),
+                        // Menambahkan shadow untuk kesan kedalaman
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 15),
                       child: TextField(
@@ -148,15 +156,31 @@ class _MahasiswaDataContactState extends State<MahasiswaDataContact> {
                             _searchText = value;
                           });
                         },
+                        // Styling untuk teks input
+                        style: const TextStyle(
+                          color: Color(0xFF333333),
+                          fontSize: 16,
+                        ),
                         decoration: const InputDecoration(
                           hintText: 'Cari nama mahasiswa...',
-                          hintStyle: TextStyle(color: Colors.grey),
-                          border: InputBorder.none,
-                          suffixIcon: Icon(
-                            Icons.search,
-                            color: Colors.grey,
-                            size: 28,
+                          hintStyle: TextStyle(
+                            color: Color(0xFF999999), // Warna hint lebih lembut
+                            fontSize: 16,
                           ),
+                          border: InputBorder.none,
+                          // Mengubah prefixIcon menjadi Icon lupa
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Color(0xFF4A6FA5), // Warna ikon disesuaikan
+                            size: 24,
+                          ),
+                          // Menghapus suffixIcon
+                          // suffixIcon: Icon(
+                          //   Icons.search,
+                          //   color: Colors.grey,
+                          //   size: 28,
+                          // ),
+                          contentPadding: EdgeInsets.symmetric(vertical: 15),
                         ),
                       ),
                     ),
@@ -333,6 +357,7 @@ class _MahasiswaDataContactState extends State<MahasiswaDataContact> {
                       mahasiswaName: namaMahasiswa,
                       mahasiswaNIM: nim,
                       mahasiswaId: userId,
+                      mahasiswaFoto: imageUrl, // <<< Tambahkan URL foto
                     ),
                   ),
                 );

@@ -1,3 +1,5 @@
+// File: dosen_chat_mahasiwa.dart
+
 import 'package:flutter/material.dart';
 
 // --- Constants (Warna & Style Khusus Chat) ---
@@ -5,8 +7,9 @@ class AppColors {
   static const Color primaryBlue = Color(0xFF1A3B5D); // Header
   static const Color backgroundGrey = Color(0xFFF5F5F5); // Background
   static const Color bubbleGrey = Color(0xFFD8D8D8); // Bubble Chat
-  static const Color inputPill = Color(0xFFBDBDBD); // Input Container
-  static const Color micBlue = Color(0xFF5C9DFF); // Tombol Mic
+  // Warna Input diubah menjadi putih untuk desain sederhana
+  static const Color inputPill = Colors.white;
+  static const Color micBlue = Color(0xFF5C9DFF); // Tombol Mic/Send
 }
 
 class AppTextStyles {
@@ -26,17 +29,21 @@ class AppTextStyles {
 // --- Main Screen ---
 
 class LecturerChatScreen extends StatefulWidget {
-  // >>> TAMBAHKAN FINAL PROPERTIES DI SINI <<<
+  // FINAL PROPERTIES
   final String mahasiswaName;
   final String mahasiswaNIM;
   final String mahasiswaId;
+  final String? mahasiswaFoto;
+  // Kita asumsikan Anda juga mengirim URL foto mahasiswa saat navigasi
+  // Untuk saat ini, kita akan pakai URL dummy/placeholder di header,
+  // karena URL foto tidak dikirim dari dosen_contact_mahasiswa.dart.
 
   const LecturerChatScreen({
     super.key,
-    // >>> DEFINISIKAN PARAMETER BERNAMA INI DI KONSTRUKTOR <<<
     required this.mahasiswaName,
     required this.mahasiswaNIM,
     required this.mahasiswaId,
+    this.mahasiswaFoto,
   });
 
   @override
@@ -64,6 +71,29 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
   ];
 
   @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  // [BARU] Fungsi Kirim Pesan (Placeholder)
+  void _sendMessage() {
+    final text = _textController.text.trim();
+    if (text.isNotEmpty) {
+      setState(() {
+        _messages.add({
+          "text": text,
+          "time":
+              "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}",
+          "isMe": true,
+        });
+      });
+      _textController.clear();
+      // TODO: Implement Supabase chat logic (Insert message)
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -74,13 +104,16 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
             child: Container(
               color: const Color(0xFFF2F2F2),
               child: ListView.builder(
+                // Tambahkan reverse: true untuk menampilkan pesan dari bawah
+                reverse: true,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 20,
                 ),
                 itemCount: _messages.length,
+                // Mengakses dari akhir list untuk reverse: true
                 itemBuilder: (context, index) {
-                  final msg = _messages[index];
+                  final msg = _messages[_messages.length - 1 - index];
                   return ChatBubble(
                     text: msg['text'],
                     time: msg['time'],
@@ -96,7 +129,12 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
     );
   }
 
+  // [MODIFIKASI] Header menggunakan data dinamis
   Widget _buildCustomHeader() {
+    // Gunakan URL foto yang dikirim, atau placeholder jika null/kosong
+    final String photoUrl = widget.mahasiswaFoto ?? '';
+    final bool hasPhoto = photoUrl.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.only(top: 50, bottom: 15, left: 10, right: 16),
       color: AppColors.primaryBlue,
@@ -120,27 +158,40 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.grey,
-                      image: DecorationImage(
-                        image: NetworkImage('https://i.pravatar.cc/150?img=33'),
-                        fit: BoxFit.cover,
-                      ),
                     ),
+                    child: hasPhoto
+                        ? ClipOval(
+                            child: Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.person, color: Colors.white),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.person,
+                            color: Colors.white,
+                          ), // Placeholder default
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // [DINAMIS] Nama Mahasiswa
                         Text(
-                          "Taufiqurahman",
-                          style: AppTextStyles.headerTitle,
+                          widget.mahasiswaName,
+                          style: AppTextStyles.headerTitle.copyWith(
+                            color: Colors.black87,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
+                        // [DINAMIS] NIM Mahasiswa
                         Text(
-                          "NIM: F1E130500",
+                          "NIM: ${widget.mahasiswaNIM}",
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 11,
@@ -159,67 +210,62 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
     );
   }
 
+  // [MODIFIKASI] Input Area disederhanakan (hanya text & tombol kirim)
   Widget _buildInputArea() {
+    // Tambahkan listener untuk mengubah tombol Mic menjadi tombol Kirim
+    final isTextFieldEmpty = _textController.text.isEmpty;
+
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         color: const Color(0xFFF2F2F2),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            // Input Text
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.inputPill,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(25),
+                  border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.sentiment_satisfied_alt,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {},
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: TextField(
+                    controller: _textController,
+                    onChanged: (text) {
+                      setState(() {
+                        // Memaksa rebuild untuk mengupdate ikon tombol
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      hintText: "Ketik pesan...",
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
                     ),
-                    Container(width: 1, height: 24, color: Colors.white54),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _textController,
-                        decoration: const InputDecoration(
-                          hintText: "",
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        style: const TextStyle(color: Colors.white),
-                        minLines: 1,
-                        maxLines: 4,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.attach_file, color: Colors.white),
-                      onPressed: () {},
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.camera_alt, color: Colors.white),
-                      onPressed: () {},
-                    ),
-                  ],
+                    style: const TextStyle(color: Colors.black87),
+                    minLines: 1,
+                    maxLines: 5,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
+
+            // Tombol Kirim (Send)
             Container(
-              decoration: const BoxDecoration(
-                color: AppColors.micBlue,
+              decoration: BoxDecoration(
+                color: isTextFieldEmpty ? Colors.grey : AppColors.primaryBlue,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.mic, color: Colors.white),
-                onPressed: () {},
+                icon: const Icon(Icons.send, color: Colors.white),
+                onPressed: isTextFieldEmpty
+                    ? null
+                    : _sendMessage, // Panggil _sendMessage
               ),
             ),
           ],
@@ -229,9 +275,10 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
   }
 }
 
-// --- Widget Component Terpisah ---
+// --- Widget Component Terpisah (ChatBubble - Tidak Berubah) ---
 
 class ChatBubble extends StatelessWidget {
+  // ... (kode ChatBubble tidak berubah) ...
   final String text;
   final String time;
   final bool isMe;
@@ -246,7 +293,9 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final bgColor = AppColors.bubbleGrey;
+    // Ganti warna bubble sesuai pengirim
+    final bgColor = isMe ? AppColors.primaryBlue : AppColors.bubbleGrey;
+    final txtColor = isMe ? Colors.white : Colors.black87;
 
     return Column(
       crossAxisAlignment: align,
@@ -269,11 +318,19 @@ class ChatBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(text, style: AppTextStyles.messageText),
+              Text(
+                text,
+                style: AppTextStyles.messageText.copyWith(color: txtColor),
+              ),
               const SizedBox(height: 4),
               Align(
                 alignment: Alignment.bottomRight,
-                child: Text(time, style: AppTextStyles.timeText),
+                child: Text(
+                  time,
+                  style: AppTextStyles.timeText.copyWith(
+                    color: isMe ? Colors.white70 : Colors.grey, // Warna waktu
+                  ),
+                ),
               ),
             ],
           ),
