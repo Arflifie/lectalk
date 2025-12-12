@@ -26,7 +26,18 @@ class AppTextStyles {
 // --- Main Screen ---
 
 class LecturerChatScreen extends StatefulWidget {
-  const LecturerChatScreen({super.key});
+  // >>> TAMBAHKAN FINAL PROPERTIES DI SINI <<<
+  final String mahasiswaName;
+  final String mahasiswaNIM;
+  final String mahasiswaId;
+
+  const LecturerChatScreen({
+    super.key,
+    // >>> DEFINISIKAN PARAMETER BERNAMA INI DI KONSTRUKTOR <<<
+    required this.mahasiswaName,
+    required this.mahasiswaNIM,
+    required this.mahasiswaId,
+  });
 
   @override
   State<LecturerChatScreen> createState() => _LecturerChatScreenState();
