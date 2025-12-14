@@ -5,15 +5,15 @@ import 'package:lectalk/pages/mahasiswa/mahasiswa_chatting.dart';
 
 final lecturersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final supabase = Supabase.instance.client;
-  final response = await supabase
-      .from('user_profiles')
-      .select()
-      .eq('role', 'dosen')
-      .order('created_at');
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('user_profiles')
+          .select()
+          .eq('role', 'dosen')
+          .order('created_at');
 
-  return List<Map<String, dynamic>>.from(response);
-});
+      return List<Map<String, dynamic>>.from(response);
+    });
 
 class LecturerDataPage extends ConsumerStatefulWidget {
   const LecturerDataPage({super.key});
@@ -43,9 +43,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
           child: Container(
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(30),
-              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +102,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
                             border: Border.all(
                               color: selected
                                   ? const Color(0xFF1E3A5F)
-                                  : Colors.grey.shade300!,
+                                  : Colors.grey.shade300,
                               width: 1.5,
                             ),
                           ),
@@ -148,9 +146,9 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
                       // Filter kategori
                       if (_selectedFilterIndex != 0) {
                         filtered = filtered.where((l) {
-                          return (l['department'] ?? '')
-                              .toString()
-                              .contains(_filters[_selectedFilterIndex]);
+                          return (l['department'] ?? '').toString().contains(
+                            _filters[_selectedFilterIndex],
+                          );
                         }).toList();
                       }
 
@@ -167,11 +165,11 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
                         ),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 15,
-                          mainAxisSpacing: 15,
-                          childAspectRatio: 0.75,
-                        ),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 15,
+                              mainAxisSpacing: 15,
+                              childAspectRatio: 0.75,
+                            ),
                         itemCount: filtered.length,
                         itemBuilder: (context, index) =>
                             _buildLecturerCard(filtered[index]),
@@ -239,10 +237,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
             Text(
               data['full_name'] ?? 'No Name',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 5),
@@ -250,10 +245,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
             // DEPARTEMEN
             Text(
               data['department'] ?? '-',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 11,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 11),
             ),
           ],
         ),
