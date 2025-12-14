@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       final user = response.user;
 
-      if (user == null) throw "Login gagal.";
+      if (user == null) throw "Login failed.";
 
       final data = await supabase
           .from('user_profiles')
