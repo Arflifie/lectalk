@@ -86,7 +86,7 @@ class _ProfileDosenPageState extends State<ProfileDosenPage> {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           // Pastikan kelas LoginScreen menggunakan Key? key di konstruktor
-          builder: (context) => const LoginScreen(),
+          builder: (context) => const LoginScreen(null),
         ),
         (Route<dynamic> route) => false,
       );
