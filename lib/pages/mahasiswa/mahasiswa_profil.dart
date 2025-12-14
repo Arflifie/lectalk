@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lectalk/pages/mahasiswa/mahasiswa_profil_edit.dart';
+import 'package:lectalk/pages/auth/login_page.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -55,6 +56,102 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoading = false;
         _error = 'Gagal memuat data: ${e.toString()}';
       });
+    }
+  }
+
+  // Fungsi untuk menampilkan dialog konfirmasi logout
+  Future<void> _showLogoutDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User harus pilih salah satu opsi
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Konfirmasi Logout',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          content: const Text(
+            'Apakah Anda yakin ingin keluar dari akun?',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: <Widget>[
+            // Tombol Cancel
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Tutup dialog
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            // Tombol Logout
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Tutup dialog
+                _handleLogout(); // Proses logout
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE31009),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Fungsi untuk menangani Logout
+  Future<void> _handleLogout() async {
+    try {
+      // Logout dari Supabase
+      await supabase.auth.signOut();
+
+      // Pastikan widget masih ada sebelum menggunakan context
+      if (!mounted) return;
+
+      // Arahkan pengguna ke halaman LoginScreen, hapus semua route sebelumnya
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(null),
+        ),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      // Tangani error jika gagal logout
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal logout: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -309,26 +406,26 @@ class _ProfilePageState extends State<ProfilePage> {
 
                           const SizedBox(height: 25),
 
-                          // TOMBOL BAWAH (QR & Edit)
+                          // TOMBOL BAWAH (Logout & Edit)
                           Row(
                             children: [
-                              // Tombol QR Code
+                              // Tombol Logout
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () {},
+                                  onPressed: _showLogoutDialog,
                                   icon: const Icon(
-                                    Icons.qr_code_2,
+                                    Icons.logout,
                                     color: Colors.white,
                                   ),
                                   label: const Text(
-                                    'Show QR code',
+                                    'Logout',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF5F8D9E),
+                                    backgroundColor: const Color(0xFFE31009),
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 25,
                                     ),
