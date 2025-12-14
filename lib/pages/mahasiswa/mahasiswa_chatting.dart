@@ -7,13 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AppColors {
   static const Color primaryBlue = Color(0xFF1A3B5D);
   static const Color bubbleGrey = Color(0xFFD8D8D8);
-  static const Color inputPill = Color(0xFFBDBDBD);
+  static const Color bubbleMe = Color(0xFFDCF8C6);
   static const Color micBlue = Color(0xFF5C9DFF);
 }
 
-// --- Provider ---
 final supabase = Supabase.instance.client;
 
+// --- Provider ---
 final chatDetailStreamProvider = StreamProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, partnerId) {
       final myUserId = supabase.auth.currentUser?.id;
@@ -21,11 +21,11 @@ final chatDetailStreamProvider = StreamProvider.autoDispose
       return supabase
           .from('messages')
           .stream(primaryKey: ['id'])
-          .order('created_at')
+          .order('created_at', ascending: false) //urutin pesan
           .map((messages) {
             return messages.where((msg) {
               final sender = msg['sender_id'];
-              final receiver = msg['receiver_id'];
+              final receiver = msg['recipient_id'];
               return (sender == myUserId && receiver == partnerId) ||
                   (sender == partnerId && receiver == myUserId);
             }).toList();
@@ -74,31 +74,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
+
     final myUserId = supabase.auth.currentUser?.id;
     if (myUserId == null) return;
+
     _textController.clear();
+    setState(() => _isTyping = false);
 
     try {
       await supabase.from('messages').insert({
         'content': text,
         'sender_id': myUserId,
-        'receiver_id': widget.partnerId,
+        'recipient_id': widget.partnerId,
       });
-      _scrollToBottom();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 100,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     }
   }
 
@@ -141,6 +135,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Text(
                 widget.partnerName,
                 style: const TextStyle(color: Colors.white, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -155,22 +150,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Error: $err')),
                 data: (messages) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (_scrollController.hasClients && messages.isNotEmpty) {
-                      // Logic auto scroll optional
-                    }
-                  });
+                  if (messages.isEmpty) {
+                    return const Center(child: Text("Mulai percakapan..."));
+                  }
 
-                  if (messages.isEmpty)
-                    return const Center(child: Text("Belum ada pesan"));
-
+                  // ✅ FIX: Reverse Scroll View (Bottom to Top)
                   return ListView.builder(
                     controller: _scrollController,
+                    reverse: true,
                     padding: const EdgeInsets.all(16),
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final msg = messages[index];
                       final isMe = msg['sender_id'] == myUserId;
+
                       return Align(
                         alignment: isMe
                             ? Alignment.centerRight
@@ -179,33 +172,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
                           constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
                           ),
                           decoration: BoxDecoration(
-                            color: isMe
-                                ? const Color(0xFFDcf8c6)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            color: isMe ? AppColors.bubbleMe : Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(12),
+                              topRight: const Radius.circular(12),
+                              bottomLeft: isMe
+                                  ? const Radius.circular(12)
+                                  : Radius.zero,
+                              bottomRight: isMe
+                                  ? Radius.zero
+                                  : const Radius.circular(12),
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.grey.withOpacity(0.2),
                                 blurRadius: 2,
+                                offset: const Offset(0, 1),
                               ),
                             ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 msg['content'] ?? '',
-                                style: const TextStyle(fontSize: 15),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _formatTime(msg['created_at']),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.grey,
+                                  color: Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -220,24 +225,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           // Input Area
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             color: Colors.white,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _textController,
+                    minLines: 1,
+                    maxLines: 5,
                     decoration: InputDecoration(
                       hintText: "Type a message...",
                       filled: true,
                       fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
-                      ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(25),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                   ),
@@ -245,10 +252,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 const SizedBox(width: 8),
                 CircleAvatar(
                   backgroundColor: AppColors.micBlue,
+                  radius: 24,
                   child: IconButton(
                     icon: Icon(
                       _isTyping ? Icons.send : Icons.mic,
                       color: Colors.white,
+                      size: 20,
                     ),
                     onPressed: _isTyping ? _sendMessage : () {},
                   ),

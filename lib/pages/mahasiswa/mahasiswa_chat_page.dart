@@ -6,19 +6,20 @@ import 'package:lectalk/pages/mahasiswa/mahasiswa_chatting.dart';
 
 final supabase = Supabase.instance.client;
 
-// Stream pesan
+// 1. Stream Semua Pesan (Raw)
 final messageStreamProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
-  return supabase
-      .from('messages')
-      .stream(primaryKey: ['id'])
-      .order('created_at')
-      .map((data) => data);
-});
+      return supabase
+          .from('messages')
+          .stream(primaryKey: ['id'])
+          .order('created_at')
+          .map((data) => data);
+    });
 
-// Recent chats
-final recentChatsProvider =
-    Provider.autoDispose<List<Map<String, dynamic>>>((ref) {
+// 2. Logic Mengolah Recent Chats (Group by User)
+final recentChatsProvider = Provider.autoDispose<List<Map<String, dynamic>>>((
+  ref,
+) {
   final messagesValue = ref.watch(messageStreamProvider);
   final myUserId = supabase.auth.currentUser?.id;
 
@@ -29,41 +30,102 @@ final recentChatsProvider =
       final Map<String, Map<String, dynamic>> uniqueConversations = {};
 
       for (var msg in messages) {
-        final senderId = msg['sender_id'];
-        final receiverId = msg['receiver_id'];
+        // --- SAFE GUARDS (Pencegahan Error Null) ---
+        final senderId = msg['sender_id']?.toString();
+        final recipientId = msg['recipient_id']?.toString();
+        final createdAtStr = msg['created_at']?.toString();
 
-        if (senderId == myUserId || receiverId == myUserId) {
-          final partnerId = senderId == myUserId ? receiverId : senderId;
+        // 1. Jika ID atau Tanggal kosong, lewati pesan ini (jangan bikin crash)
+        if (senderId == null || recipientId == null || createdAtStr == null) {
+          continue;
+        }
+        // -------------------------------------------
+
+        if (senderId == myUserId || recipientId == myUserId) {
+          // Tentukan lawan bicara
+          final partnerId = (senderId == myUserId) ? recipientId : senderId;
 
           if (!uniqueConversations.containsKey(partnerId)) {
             uniqueConversations[partnerId] = msg;
           } else {
-            final existingTime =
-                DateTime.parse(uniqueConversations[partnerId]!['created_at']);
-            final newTime = DateTime.parse(msg['created_at']);
-            if (newTime.isAfter(existingTime)) {
-              uniqueConversations[partnerId] = msg;
+            final existingMsg = uniqueConversations[partnerId];
+            final existingTimeStr = existingMsg?['created_at']?.toString();
+
+            if (existingTimeStr != null) {
+              final newTime = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+              final oldTime =
+                  DateTime.tryParse(existingTimeStr) ?? DateTime(1970);
+
+              if (newTime.isAfter(oldTime)) {
+                uniqueConversations[partnerId] = msg;
+              }
             }
           }
         }
       }
 
-      return uniqueConversations.values.toList()
-        ..sort((a, b) => b['created_at'].compareTo(a['created_at']));
+      // Sortir pesan terbaru paling atas
+      return uniqueConversations.values.toList()..sort((a, b) {
+        final tA =
+            DateTime.tryParse(a['created_at'].toString()) ?? DateTime(1970);
+        final tB =
+            DateTime.tryParse(b['created_at'].toString()) ?? DateTime(1970);
+        return tB.compareTo(tA);
+      });
     },
     loading: () => [],
-    error: (_, __) => [],
+    error: (e, s) {
+      debugPrint("Error recentChats: $e");
+      return [];
+    },
   );
 });
 
-// Profile partner chat
-final userProfileProvider =
-    FutureProvider.family<Map<String, dynamic>, String>((ref, userId) async {
-  final response =
-      await supabase.from('user_profiles').select().eq('id', userId).single();
-  return response;
-});
+// 3. Provider Profil (Cek Tabel Mahasiswa & Dosen)
+final userProfileProvider = FutureProvider.family<Map<String, dynamic>, String>(
+  (ref, userId) async {
+    final supabase = Supabase.instance.client;
 
+    try {
+      // A. Cek tabel MAHASISWA
+      final mhsData = await supabase
+          .from('mahasiswa')
+          .select('nama_mahasiswa, foto_mahasiswa')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (mhsData != null) {
+        return {
+          'name': mhsData['nama_mahasiswa'],
+          'avatar': mhsData['foto_mahasiswa'],
+          'type': 'Mahasiswa',
+        };
+      }
+
+      // B. Cek tabel DOSEN
+      final dosenData = await supabase
+          .from('dosen_profile')
+          .select('nama_dosen, foto_dosen')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (dosenData != null) {
+        return {
+          'name': dosenData['nama_dosen'],
+          'avatar': dosenData['foto_dosen'],
+          'type': 'Dosen',
+        };
+      }
+
+      return {'name': 'Unknown User', 'avatar': null};
+    } catch (e) {
+      debugPrint('Error fetch profile: $e');
+      return {'name': 'Error', 'avatar': null};
+    }
+  },
+);
+
+// --- UI CHAT PAGE ---
 class ChatPage extends ConsumerStatefulWidget {
   const ChatPage({super.key});
   @override
@@ -86,9 +148,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final recentChats = ref.watch(recentChatsProvider);
-    final streamAsync = ref.watch(messageStreamProvider);
+    final streamAsync = ref.watch(messageStreamProvider); // Untuk loading state
 
-    // ⛔ Scaffold + AppBar dihapus total
     return Column(
       children: [
         Expanded(
@@ -100,7 +161,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-
                 // 🔎 Search Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -112,17 +172,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 15),
                     child: TextField(
+                      textAlignVertical: TextAlignVertical.center,
                       onChanged: (v) =>
                           setState(() => _searchQuery = v.toLowerCase()),
                       decoration: const InputDecoration(
                         hintText: "Search conversation...",
                         border: InputBorder.none,
                         suffixIcon: Icon(Icons.search, color: Colors.grey),
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
 
                 // 🗂 List Chat
@@ -132,19 +193,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         const Center(child: CircularProgressIndicator()),
                     error: (err, _) => Center(child: Text('Error: $err')),
                     data: (_) {
+                      // Filter search
                       final filteredChats = recentChats
-                          .where((chat) =>
-                              chat['content']
-                                      ?.toString()
-                                      .toLowerCase()
-                                      .contains(_searchQuery) ??
-                              false)
+                          .where(
+                            (chat) =>
+                                chat['content']
+                                    ?.toString()
+                                    .toLowerCase()
+                                    .contains(_searchQuery) ??
+                                false,
+                          )
                           .toList();
 
                       if (filteredChats.isEmpty) {
                         return const Center(
                           child: Text(
-                            "Belum ada pesan",
+                            "No messages found",
                             style: TextStyle(fontSize: 16),
                           ),
                         );
@@ -152,13 +216,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
                       return ListView.builder(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         itemCount: filteredChats.length,
                         itemBuilder: (context, index) {
                           final chat = filteredChats[index];
                           final partnerId = chat['sender_id'] == myUserId
-                              ? chat['receiver_id']
+                              ? chat['recipient_id'] // ✅ Gunakan recipient_id
                               : chat['sender_id'];
+
                           return _ChatListItem(
                             partnerId: partnerId,
                             lastMessage: chat['content'] ?? '',
@@ -168,7 +235,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       );
                     },
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -196,13 +263,15 @@ class _ChatListItem extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         profileAsync.whenData((profile) {
+          // Navigasi ke ChatScreen
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => ChatScreen(
                 partnerId: partnerId,
-                partnerName: profile['full_name'] ?? 'Unknown',
-                partnerAvatar: profile['avatar_url'],
+                // ✅ FIX: Gunakan key 'name' dan 'avatar' sesuai Provider di atas
+                partnerName: profile['name'] ?? 'Unknown',
+                partnerAvatar: profile['avatar'],
               ),
             ),
           );
@@ -221,31 +290,35 @@ class _ChatListItem extends ConsumerWidget {
             profileAsync.when(
               data: (profile) => CircleAvatar(
                 radius: 28,
-                backgroundImage: (profile['avatar_url'] != null)
-                    ? NetworkImage(profile['avatar_url'])
+                // ✅ FIX: Gunakan key 'avatar'
+                backgroundImage: (profile['avatar'] != null)
+                    ? NetworkImage(profile['avatar'])
                     : null,
-                child: (profile['avatar_url'] == null)
+                child: (profile['avatar'] == null)
                     ? const Icon(Icons.person)
                     : null,
               ),
-              loading: () =>
-                  const CircleAvatar(radius: 28, child: CircularProgressIndicator()),
+              loading: () => const CircleAvatar(
+                radius: 28,
+                child: CircularProgressIndicator(),
+              ),
               error: (_, __) =>
                   const CircleAvatar(radius: 28, child: Icon(Icons.error)),
             ),
-
             const SizedBox(width: 12),
-
-            // Nama + message
+            // Nama + Message
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   profileAsync.when(
+                    // ✅ FIX: Gunakan key 'name'
                     data: (profile) => Text(
-                      profile['full_name'] ?? "Unknown",
+                      profile['name'] ?? "Unknown",
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     loading: () => Container(
                       height: 14,
@@ -264,11 +337,7 @@ class _ChatListItem extends ConsumerWidget {
                 ],
               ),
             ),
-
-            Text(
-              time,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
+            Text(time, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           ],
         ),
       ),
