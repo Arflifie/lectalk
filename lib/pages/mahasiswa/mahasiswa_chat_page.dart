@@ -2,21 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// ⚠️ PENTING: Ganti import ini dengan lokasi file ChatScreen (Halaman Detail Chat) Anda yang asli.
+// Jika file ChatScreen Anda ada di folder 'pages', uncomment baris di bawah:
 import 'package:lectalk/pages/mahasiswa/mahasiswa_chatting.dart';
 
 final supabase = Supabase.instance.client;
 
-// 1. Stream Semua Pesan (Raw)
+// ==========================================
+// 1. PROVIDERS
+// ==========================================
+
+// A. Stream Semua Pesan (Raw Data) + FIX TIPE DATA
 final messageStreamProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
       return supabase
           .from('messages')
           .stream(primaryKey: ['id'])
           .order('created_at')
-          .map((data) => data);
+          .map((data) {
+            // PERBAIKAN PENTING: Paksa konversi tipe data agar tidak error List<dynamic>
+            return List<Map<String, dynamic>>.from(data);
+          });
     });
 
-// 2. Logic Mengolah Recent Chats (Group by User)
+// B. Logic Recent Chats + Hitung Unread
+// B. Logic Recent Chats + Hitung Unread
 final recentChatsProvider = Provider.autoDispose<List<Map<String, dynamic>>>((
   ref,
 ) {
@@ -27,51 +38,67 @@ final recentChatsProvider = Provider.autoDispose<List<Map<String, dynamic>>>((
     data: (messages) {
       if (myUserId == null) return [];
 
-      final Map<String, Map<String, dynamic>> uniqueConversations = {};
+      final Map<String, Map<String, dynamic>> conversations = {};
 
       for (var msg in messages) {
-        // --- SAFE GUARDS (Pencegahan Error Null) ---
         final senderId = msg['sender_id']?.toString();
         final recipientId = msg['recipient_id']?.toString();
         final createdAtStr = msg['created_at']?.toString();
+        final isRead = msg['is_read'] as bool? ?? false;
 
-        // 1. Jika ID atau Tanggal kosong, lewati pesan ini (jangan bikin crash)
         if (senderId == null || recipientId == null || createdAtStr == null) {
           continue;
         }
-        // -------------------------------------------
 
         if (senderId == myUserId || recipientId == myUserId) {
-          // Tentukan lawan bicara
           final partnerId = (senderId == myUserId) ? recipientId : senderId;
 
-          if (!uniqueConversations.containsKey(partnerId)) {
-            uniqueConversations[partnerId] = msg;
-          } else {
-            final existingMsg = uniqueConversations[partnerId];
-            final existingTimeStr = existingMsg?['created_at']?.toString();
+          if (!conversations.containsKey(partnerId)) {
+            conversations[partnerId] = {'message': msg, 'unread_count': 0};
+          }
 
-            if (existingTimeStr != null) {
-              final newTime = DateTime.tryParse(createdAtStr) ?? DateTime.now();
-              final oldTime =
-                  DateTime.tryParse(existingTimeStr) ?? DateTime(1970);
+          // LOGIC 1: HITUNG UNREAD
+          if (recipientId == myUserId && !isRead) {
+            conversations[partnerId]!['unread_count'] =
+                (conversations[partnerId]!['unread_count'] as int) + 1;
+          }
 
-              if (newTime.isAfter(oldTime)) {
-                uniqueConversations[partnerId] = msg;
-              }
-            }
+          // LOGIC 2: CARI PESAN TERBARU
+          final currentStoredMsg =
+              conversations[partnerId]!['message'] as Map<String, dynamic>;
+          final currentStoredTime =
+              DateTime.tryParse(currentStoredMsg['created_at'].toString()) ??
+              DateTime(1970);
+          final newMsgTime = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+
+          if (newMsgTime.isAfter(currentStoredTime)) {
+            conversations[partnerId]!['message'] = msg;
           }
         }
       }
 
-      // Sortir pesan terbaru paling atas
-      return uniqueConversations.values.toList()..sort((a, b) {
+      // --- PERBAIKAN DI SINI (Baris 90-an ke bawah) ---
+      // Kita deklarasikan tipe variabelnya secara eksplisit
+      final List<Map<String, dynamic>> resultList = conversations.entries.map((
+        entry,
+      ) {
+        // Ambil pesan dan paksa jadi Map<String, dynamic>
+        final msg = Map<String, dynamic>.from(entry.value['message'] as Map);
+        final count = entry.value['unread_count'] as int;
+
+        return <String, dynamic>{...msg, 'unread_count': count};
+      }).toList();
+
+      // Sortir
+      resultList.sort((a, b) {
         final tA =
             DateTime.tryParse(a['created_at'].toString()) ?? DateTime(1970);
         final tB =
             DateTime.tryParse(b['created_at'].toString()) ?? DateTime(1970);
         return tB.compareTo(tA);
       });
+
+      return resultList;
     },
     loading: () => [],
     error: (e, s) {
@@ -81,13 +108,12 @@ final recentChatsProvider = Provider.autoDispose<List<Map<String, dynamic>>>((
   );
 });
 
-// 3. Provider Profil (Cek Tabel Mahasiswa & Dosen)
+// C. Provider Profil User (Nama & Foto)
 final userProfileProvider = FutureProvider.family<Map<String, dynamic>, String>(
   (ref, userId) async {
     final supabase = Supabase.instance.client;
-
     try {
-      // A. Cek tabel MAHASISWA
+      // Cek Mahasiswa
       final mhsData = await supabase
           .from('mahasiswa')
           .select('nama_mahasiswa, foto_mahasiswa')
@@ -98,11 +124,10 @@ final userProfileProvider = FutureProvider.family<Map<String, dynamic>, String>(
         return {
           'name': mhsData['nama_mahasiswa'],
           'avatar': mhsData['foto_mahasiswa'],
-          'type': 'Mahasiswa',
         };
       }
 
-      // B. Cek tabel DOSEN
+      // Cek Dosen
       final dosenData = await supabase
           .from('dosen_profile')
           .select('nama_dosen, foto_dosen')
@@ -113,19 +138,19 @@ final userProfileProvider = FutureProvider.family<Map<String, dynamic>, String>(
         return {
           'name': dosenData['nama_dosen'],
           'avatar': dosenData['foto_dosen'],
-          'type': 'Dosen',
         };
       }
-
       return {'name': 'Unknown User', 'avatar': null};
     } catch (e) {
-      debugPrint('Error fetch profile: $e');
       return {'name': 'Error', 'avatar': null};
     }
   },
 );
 
-// --- UI CHAT PAGE ---
+// ==========================================
+// 2. HALAMAN UTAMA (LIST CHAT)
+// ==========================================
+
 class ChatPage extends ConsumerStatefulWidget {
   const ChatPage({super.key});
   @override
@@ -148,7 +173,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final recentChats = ref.watch(recentChatsProvider);
-    final streamAsync = ref.watch(messageStreamProvider); // Untuk loading state
+    final streamAsync = ref.watch(messageStreamProvider);
 
     return Column(
       children: [
@@ -161,7 +186,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                // 🔎 Search Bar
+                // --- Search Bar ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
                   child: Container(
@@ -176,7 +201,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       onChanged: (v) =>
                           setState(() => _searchQuery = v.toLowerCase()),
                       decoration: const InputDecoration(
-                        hintText: "Search conversation...",
+                        hintText: "Cari obrolan...",
                         border: InputBorder.none,
                         suffixIcon: Icon(Icons.search, color: Colors.grey),
                         contentPadding: EdgeInsets.zero,
@@ -186,30 +211,25 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // 🗂 List Chat
+                // --- List Chat ---
                 Expanded(
                   child: streamAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (err, _) => Center(child: Text('Error: $err')),
                     data: (_) {
-                      // Filter search
-                      final filteredChats = recentChats
-                          .where(
-                            (chat) =>
-                                chat['content']
-                                    ?.toString()
-                                    .toLowerCase()
-                                    .contains(_searchQuery) ??
-                                false,
-                          )
-                          .toList();
+                      // Filter Search
+                      final filteredChats = recentChats.where((chat) {
+                        final content =
+                            chat['content']?.toString().toLowerCase() ?? '';
+                        return content.contains(_searchQuery);
+                      }).toList();
 
                       if (filteredChats.isEmpty) {
                         return const Center(
                           child: Text(
-                            "No messages found",
-                            style: TextStyle(fontSize: 16),
+                            "Belum ada pesan",
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         );
                       }
@@ -223,13 +243,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         itemBuilder: (context, index) {
                           final chat = filteredChats[index];
                           final partnerId = chat['sender_id'] == myUserId
-                              ? chat['recipient_id'] // ✅ Gunakan recipient_id
+                              ? chat['recipient_id']
                               : chat['sender_id'];
 
                           return _ChatListItem(
                             partnerId: partnerId,
                             lastMessage: chat['content'] ?? '',
                             time: _formatTime(chat['created_at']),
+                            // Kirim jumlah unread ke widget item
+                            unreadCount: chat['unread_count'] ?? 0,
                           );
                         },
                       );
@@ -245,16 +267,35 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 }
 
+// ==========================================
+// 3. WIDGET ITEM CHAT (DESAIN WA)
+// ==========================================
+
 class _ChatListItem extends ConsumerWidget {
   final String partnerId;
   final String lastMessage;
   final String time;
+  final int unreadCount; // Parameter baru
 
   const _ChatListItem({
     required this.partnerId,
     required this.lastMessage,
     required this.time,
+    required this.unreadCount,
   });
+
+  // Fungsi: Tandai pesan sebagai terbaca di database
+  Future<void> _markAsRead() async {
+    final myUserId = supabase.auth.currentUser?.id;
+    if (myUserId == null) return;
+
+    // Update is_read = true KHUSUS untuk pesan dari partner ini ke saya
+    await supabase.from('messages').update({'is_read': true}).match({
+      'sender_id': partnerId,
+      'recipient_id': myUserId,
+      'is_read': false,
+    });
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -262,14 +303,18 @@ class _ChatListItem extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () {
+        // 1. Jika ada pesan belum dibaca, tandai sudah dibaca (update DB)
+        if (unreadCount > 0) {
+          _markAsRead();
+        }
+
+        // 2. Navigasi ke halaman detail chat
         profileAsync.whenData((profile) {
-          // Navigasi ke ChatScreen
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => ChatScreen(
                 partnerId: partnerId,
-                // ✅ FIX: Gunakan key 'name' dan 'avatar' sesuai Provider di atas
                 partnerName: profile['name'] ?? 'Unknown',
                 partnerAvatar: profile['avatar'],
               ),
@@ -281,21 +326,28 @@ class _ChatListItem extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: Colors.white, // Background putih bersih
           borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            // Avatar
+            // --- AVATAR ---
             profileAsync.when(
               data: (profile) => CircleAvatar(
                 radius: 28,
-                // ✅ FIX: Gunakan key 'avatar'
+                backgroundColor: Colors.grey.shade300,
                 backgroundImage: (profile['avatar'] != null)
                     ? NetworkImage(profile['avatar'])
                     : null,
                 child: (profile['avatar'] == null)
-                    ? const Icon(Icons.person)
+                    ? const Icon(Icons.person, color: Colors.white)
                     : null,
               ),
               loading: () => const CircleAvatar(
@@ -306,18 +358,20 @@ class _ChatListItem extends ConsumerWidget {
                   const CircleAvatar(radius: 28, child: Icon(Icons.error)),
             ),
             const SizedBox(width: 12),
-            // Nama + Message
+
+            // --- NAMA & PESAN TERAKHIR ---
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Nama User
                   profileAsync.when(
-                    // ✅ FIX: Gunakan key 'name'
                     data: (profile) => Text(
                       profile['name'] ?? "Unknown",
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                     loading: () => Container(
@@ -328,19 +382,81 @@ class _ChatListItem extends ConsumerWidget {
                     error: (_, __) => const Text("Error"),
                   ),
                   const SizedBox(height: 4),
+
+                  // Last Message
                   Text(
                     lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      // Jika unread > 0, teks jadi hitam tebal (mirip WA)
+                      // Jika sudah dibaca, teks jadi abu-abu
+                      color: unreadCount > 0
+                          ? Colors.black87
+                          : Colors.grey[600],
+                      fontWeight: unreadCount > 0
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ],
               ),
             ),
-            Text(time, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+
+            // --- WAKTU & MARKER HIJAU ---
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Jam
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 12,
+                    // Jam jadi hijau jika ada pesan baru
+                    color: unreadCount > 0
+                        ? const Color(0xFF25D366)
+                        : Colors.grey[500],
+                    fontWeight: unreadCount > 0
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Marker Lingkaran Hijau (Hanya muncul jika unread > 0)
+                if (unreadCount > 0)
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF25D366), // Hijau Khas WhatsApp
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 22,
+                      minHeight: 22,
+                    ),
+                    child: Center(
+                      child: Text(
+                        unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+// ==========================================
+// PLACEHOLDER CHAT SCREEN
+// ==========================================
+// JIKA Anda sudah punya file `chat_screen.dart` yang asli,
+// HAPUS Class ChatScreen di bawah ini, dan import file Anda di paling atas.
