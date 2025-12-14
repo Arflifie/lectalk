@@ -1,7 +1,14 @@
+// File: dosen_chat_page.dart
+
 import 'package:flutter/material.dart';
-// Import halaman tujuan yang diperlukan untuk navigasi
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+// Import halaman tujuan
 import 'package:lectalk/pages/dosen/dosen_contact_mahasiswa.dart';
 import 'package:lectalk/pages/dosen/dosen_profil.dart';
+import 'package:lectalk/pages/dosen/dosen_chat_mahasiwa.dart'; // Halaman chat detail
+
+final supabase = Supabase.instance.client; // Akses Supabase Client
 
 class LecturerChatPage extends StatefulWidget {
   const LecturerChatPage({super.key});
@@ -11,9 +18,57 @@ class LecturerChatPage extends StatefulWidget {
 }
 
 class _LecturerChatPageState extends State<LecturerChatPage> {
-  // Index 0 untuk Chat
-  int _selectedIndex = 0;
+  int _selectedIndex = 0; // Index 0 untuk Chat
 
+  List<Map<String, dynamic>> _chatList = [];
+  bool _isLoading = true;
+  String _searchText = ''; // State baru untuk menyimpan input pencarian
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChatList();
+  }
+
+  // Fungsi untuk memuat daftar chat menggunakan RPC
+  Future<void> _loadChatList() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final data = await supabase.rpc('get_dosen_chat_list');
+
+      if (!mounted) return;
+
+      if (data is List) {
+        setState(() {
+          _chatList = List<Map<String, dynamic>>.from(data);
+        });
+      } else {
+        setState(() {
+          _chatList = [];
+        });
+      }
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error memuat daftar chat: ${error.message}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan tak terduga: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // [NAVBAR] Implementasi Navigasi _onItemTapped
   void _onItemTapped(int index) {
     if (_selectedIndex == index) return;
 
@@ -21,7 +76,6 @@ class _LecturerChatPageState extends State<LecturerChatPage> {
       _selectedIndex = index;
     });
 
-    // Navigasi ke halaman lain berdasarkan index
     switch (index) {
       case 0:
         break;
@@ -40,133 +94,88 @@ class _LecturerChatPageState extends State<LecturerChatPage> {
     }
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-    required bool isSelected,
-  }) {
-    return InkWell(
-      onTap: () => _onItemTapped(index),
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? Colors.white
-                  : const Color.fromARGB(255, 77, 136, 212),
-              size: 30,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : const Color.fromARGB(255, 77, 136, 212),
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    // Logika Filtering
+    final filteredChatList = _chatList.where((chat) {
+      final name = (chat['mahasiswa_name'] as String).toLowerCase();
+      final content = (chat['latest_message_content'] as String).toLowerCase();
+      final query = _searchText.toLowerCase();
 
-  Widget _buildChatItem({
-    required String name,
-    required String nim,
-    required String message,
-    required String time,
-    required String avatar,
-  }) {
-    // ... (Tidak ada perubahan pada widget chat item)
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
+      // Filter berdasarkan nama mahasiswa atau isi pesan terakhir
+      return name.contains(query) || content.contains(query);
+    }).toList();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E3A5F), // Warna header
+      body: Column(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.grey[300],
-            child: Icon(Icons.person, size: 35, color: Colors.grey[600]),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
+          // Header dan Search Bar (di dalam container biru)
+          Container(
+            padding: const EdgeInsets.only(
+              top: 50,
+              bottom: 15,
+              left: 20,
+              right: 20,
+            ),
+            color: const Color(0xFF1E3A5F),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'NIM: $nim',
+                // 1. Title/Brand Name (Diubah menjadi 'Lectalk')
+                const Text(
+                  'Lectalk',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.w400,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 30,
+                    letterSpacing: 1.5,
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  message,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 15),
+
+                // 2. Search Bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchText = value; // Update state untuk filtering
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Cari Mahasiswa atau Pesan...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 16,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF4A6FA5),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          Text(time, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-        ],
-      ),
-    );
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1E3A5F),
-      appBar: AppBar(
-        // REVISI: Mengatur leading menjadi null untuk menghapus tombol back (jika ada)
-        leading: null,
-        automaticallyImplyLeading:
-            false, // Memastikan tombol back bawaan tidak muncul
-        backgroundColor: const Color(0xFF1E3A5F),
-        elevation: 0,
-
-        // REVISI: Mengubah judul, memperbesar, dan menjadikannya bold
-        title: const Text(
-          'Lectalk', // Judul diubah menjadi 'Lectalk'
-          style: TextStyle(
-            color: Colors.white, // Warna dibuat lebih solid
-            fontSize: 28, // Ukuran diperbesar
-            fontWeight: FontWeight.bold, // Dibuat bold
-          ),
-        ),
-
-        // REVISI: Mengatur rata kiri
-        titleSpacing: 20.0, // Memberi sedikit padding dari kiri
-        // REVISI: Menghapus seluruh bagian actions (hamburger menu)
-        actions: const [],
-      ),
-      body: Column(
-        children: [
+          // Body List Chat
           Expanded(
             child: Container(
               decoration: const BoxDecoration(
@@ -176,71 +185,241 @@ class _LecturerChatPageState extends State<LecturerChatPage> {
                   topRight: Radius.circular(30),
                 ),
               ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      children: [
-                        _buildChatItem(
-                          name: 'Taufiqurahman',
-                          nim: 'F1E130500',
-                          message: 'Okey sir',
-                          time: '14:54',
-                          avatar: 'assets/avatar.jpg',
-                        ),
-                        _buildChatItem(
-                          name: 'Ahmad Rizki',
-                          nim: 'F1E130501',
-                          message: 'Terima kasih pak atas bimbingannya',
-                          time: '10:23',
-                          avatar: 'assets/avatar.jpg',
-                        ),
-                        _buildChatItem(
-                          name: 'Siti Nurhaliza',
-                          nim: 'F1E130502',
-                          message: 'Baik pak, saya akan revisi',
-                          time: 'Yesterday',
-                          avatar: 'assets/avatar.jpg',
-                        ),
-                        _buildChatItem(
-                          name: 'Budi Santoso',
-                          nim: 'F1E130503',
-                          message: 'Pak, boleh konsultasi hari Rabu?',
-                          time: 'Yesterday',
-                          avatar: 'assets/avatar.jpg',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              // Menggunakan list yang sudah difilter
+              child: _buildChatListBody(filteredChatList),
             ),
           ),
         ],
       ),
       extendBody: true,
-      bottomNavigationBar: Container(
+      bottomNavigationBar: _buildNavbar(context),
+    );
+  }
+
+  // Widget untuk menampilkan list chat (menerima list yang sudah difilter)
+  Widget _buildChatListBody(List<Map<String, dynamic>> listToShow) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Kasus 1: Tidak ada chat sama sekali
+    if (_chatList.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.forum_outlined, size: 80, color: Colors.grey),
+            const SizedBox(height: 10),
+            const Text(
+              'Belum ada pesan. Mulai chat di tab Mahasiswa.',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _loadChatList,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E3A5F),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Kasus 2: Ada chat, tapi tidak ada yang cocok dengan pencarian
+    if (listToShow.isEmpty && _searchText.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.sentiment_dissatisfied,
+              size: 80,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Tidak ditemukan chat untuk "$_searchText".',
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Kasus 3: Menampilkan list yang difilter/lengkap
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 10),
+      itemCount: listToShow.length,
+      itemBuilder: (context, index) {
+        final chat = listToShow[index];
+        return _buildChatCard(chat);
+      },
+    );
+  }
+
+  // Widget untuk satu item (kartu) chat
+  Widget _buildChatCard(Map<String, dynamic> chat) {
+    // ... (Kode _buildChatCard tidak berubah) ...
+    final String name = chat['mahasiswa_name'] ?? 'Mahasiswa';
+    final String nim =
+        chat['mahasiswa_nim'] ?? 'NIM Tidak Tersedia'; // Ambil NIM dari RPC
+    final String lastMessage =
+        chat['latest_message_content'] ?? 'Belum ada pesan';
+    final String? photoUrl = chat['mahasiswa_foto'];
+    final bool isUnread =
+        chat['is_read'] == false && chat['is_sender_me'] == false;
+
+    // Format waktu
+    final DateTime messageTime = DateTime.parse(
+      chat['latest_message_time'],
+    ).toLocal();
+    final String formattedTime = DateFormat('jm').format(messageTime);
+
+    return InkWell(
+      onTap: () {
+        // Navigasi ke halaman chat detail
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LecturerChatScreen(
+              mahasiswaName: name,
+              mahasiswaNIM: nim, // Kirim NIM yang sudah diambil dari RPC
+              mahasiswaId: chat['user_id'],
+              mahasiswaFoto: photoUrl,
+            ),
+          ),
+        ).then((_) {
+          _loadChatList();
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: 55,
+              height: 55,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey[200],
+              ),
+              child: photoUrl != null && photoUrl.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.person, color: Colors.grey),
+                      ),
+                    )
+                  : const Icon(Icons.person, color: Colors.grey, size: 30),
+            ),
+
+            const SizedBox(width: 15),
+
+            // Nama & Pesan Terakhir
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                      fontSize: 16,
+                      color: const Color(0xFF1E3A5F),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      // Indikator 'You:' jika pengirimnya adalah Dosen
+                      if (chat['is_sender_me'] == true)
+                        Text(
+                          "Anda: ",
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+
+                      // Isi Pesan Terakhir
+                      Expanded(
+                        child: Text(
+                          lastMessage,
+                          style: TextStyle(
+                            color: isUnread ? Colors.black87 : Colors.grey[600],
+                            fontSize: 14,
+                            fontWeight: isUnread
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Waktu dan Status Dibaca
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formattedTime,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isUnread ? const Color(0xFF1E3A5F) : Colors.grey,
+                    fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                // Indikator Pesan Belum Dibaca
+                if (isUnread)
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1E3A5F),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Text(
+                      '1',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // [NAVBAR] Helper method untuk Navbar
+  Align _buildNavbar(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
         margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
         decoration: BoxDecoration(
           color: const Color(0xFF1A2F4A),
@@ -278,6 +457,45 @@ class _LecturerChatPageState extends State<LecturerChatPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // [NAVBAR] Widget Navbar Item
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isSelected,
+  }) {
+    return GestureDetector(
+      onTap: () => _onItemTapped(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? Colors.white
+                  : const Color.fromARGB(255, 77, 136, 212),
+              size: 30,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : const Color.fromARGB(255, 77, 136, 212),
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
         ),
       ),
     );

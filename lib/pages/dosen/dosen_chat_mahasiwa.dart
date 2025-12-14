@@ -1,13 +1,17 @@
 // File: dosen_chat_mahasiwa.dart
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+
+// Akses Supabase Client
+final supabase = Supabase.instance.client;
 
 // --- Constants (Warna & Style Khusus Chat) ---
 class AppColors {
   static const Color primaryBlue = Color(0xFF1A3B5D); // Header
-  static const Color backgroundGrey = Color(0xFFF5F5F5); // Background
+  static const Color backgroundGrey = Color(0xFFF2F2F2); // Background
   static const Color bubbleGrey = Color(0xFFD8D8D8); // Bubble Chat
-  // Warna Input diubah menjadi putih untuk desain sederhana
   static const Color inputPill = Colors.white;
   static const Color micBlue = Color(0xFF5C9DFF); // Tombol Mic/Send
 }
@@ -29,14 +33,10 @@ class AppTextStyles {
 // --- Main Screen ---
 
 class LecturerChatScreen extends StatefulWidget {
-  // FINAL PROPERTIES
   final String mahasiswaName;
   final String mahasiswaNIM;
   final String mahasiswaId;
   final String? mahasiswaFoto;
-  // Kita asumsikan Anda juga mengirim URL foto mahasiswa saat navigasi
-  // Untuk saat ini, kita akan pakai URL dummy/placeholder di header,
-  // karena URL foto tidak dikirim dari dosen_contact_mahasiswa.dart.
 
   const LecturerChatScreen({
     super.key,
@@ -52,86 +52,183 @@ class LecturerChatScreen extends StatefulWidget {
 
 class _LecturerChatScreenState extends State<LecturerChatScreen> {
   final TextEditingController _textController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
-  // Dummy Data - Percakapan dari sudut pandang dosen
-  final List<Map<String, dynamic>> _messages = [
-    {
-      "text":
-          "Good afternoon, Mr. Bambang Listiyanto, I apologize for interrupting your time. I am Taufiqurahman with NIM F1E130500, a student under your thesis guidance. I would like to consult regarding the completion of chapter I of my thesis which will discuss political campaign strategies on social media. When can I meet you for guidance and consultation? I will adjust to your schedule. Thank you very much, Mr. for your time. Good afternoon.",
-      "time": "14.27",
-      "isMe": false,
-    },
-    {
-      "text":
-          "Good afternoon, Taufiqurahman. Thank you for your message. No need to apologize — I appreciate your initiative.\nIt's good that you're progressing with your thesis. I'd be happy to guide you. I'm available this Wednesday or Friday at 10:00 AM. Please let me know which time works best for you.\nAlso, if possible, kindly send me your Chapter I draft beforehand so I can review it briefly before our meeting.\nLooking forward to our discussion.",
-      "time": "14.54",
-      "isMe": true,
-    },
-    {"text": "Okey sir", "time": "14.54", "isMe": false},
-  ];
+  String? _currentUserId;
+  List<Map<String, dynamic>> _messages = [];
+  bool _isLoading = true;
+  late RealtimeChannel _chatChannel;
 
   @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
-  }
-
-  // [BARU] Fungsi Kirim Pesan (Placeholder)
-  void _sendMessage() {
-    final text = _textController.text.trim();
-    if (text.isNotEmpty) {
-      setState(() {
-        _messages.add({
-          "text": text,
-          "time":
-              "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}",
-          "isMe": true,
-        });
-      });
-      _textController.clear();
-      // TODO: Implement Supabase chat logic (Insert message)
+  void initState() {
+    super.initState();
+    _currentUserId = supabase.auth.currentUser?.id;
+    if (_currentUserId != null) {
+      _loadMessages();
+      _setupRealtimeSubscription();
     }
   }
 
   @override
+  void dispose() {
+    supabase.removeChannel(_chatChannel);
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // --- LOGIKA SUPABASE ---
+
+  Future<void> _loadMessages() async {
+    setState(() => _isLoading = true);
+    try {
+      // [PERBAIKAN SINTAKS OR]: Menggunakan format AND() di dalam OR() Postgrest
+      final List<Map<String, dynamic>> messagesData = await supabase
+          .from('messages')
+          .select('*')
+          .or(
+            'and(sender_id.eq.$_currentUserId,recipient_id.eq.${widget.mahasiswaId}),'
+            'and(sender_id.eq.${widget.mahasiswaId},recipient_id.eq.$_currentUserId)',
+          )
+          .order('created_at', ascending: true);
+
+      setState(() {
+        _messages = messagesData;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    } on PostgrestException catch (e) {
+      print('Error loading messages: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat pesan: ${e.message}')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _setupRealtimeSubscription() {
+    _chatChannel = supabase.channel('chat_${widget.mahasiswaId}');
+
+    _chatChannel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) {
+            final message = payload.newRecord;
+            final senderId = message['sender_id'];
+            final recipientId = message['recipient_id'];
+
+            // HANYA terima pesan yang datang DARI PIHAK LAIN (Mahasiswa)
+            // Pesan dari diri sendiri sudah di-handle oleh Optimistic UI Update.
+            if (senderId == widget.mahasiswaId &&
+                recipientId == _currentUserId) {
+              if (mounted) {
+                setState(() {
+                  _messages.add(message);
+                });
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _scrollToBottom(),
+                );
+              }
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  void _sendMessage() async {
+    final text = _textController.text.trim();
+    final currentUserId = _currentUserId;
+
+    _textController.clear();
+    // setState() di sini untuk membersihkan input field dan update status tombol
+    setState(() {});
+
+    if (text.isEmpty || currentUserId == null) return;
+
+    // 1. Persiapkan data pesan untuk TAMPILAN OPTIMISTIC
+    final newMessage = {
+      'sender_id': currentUserId,
+      'recipient_id': widget.mahasiswaId,
+      'content': text,
+      'created_at': DateTime.now()
+          .toUtc()
+          .toIso8601String(), // Waktu lokal/mock
+      // Supabase akan mengabaikan created_at ini dan memakai waktu server,
+      // tetapi ini dibutuhkan untuk tampilan lokal instan.
+      'is_read': false, // Asumsi belum dibaca lawan, tapi status dikirim
+    };
+
+    // 2. OPTIMISTIC UI UPDATE: Tampilkan pesan di layar SEGERA
+    setState(() {
+      _messages.add(newMessage);
+    });
+    _scrollToBottom(); // Gulir ke pesan baru
+
+    // 3. Kirim ke Supabase
+    try {
+      await supabase.from('messages').insert({
+        'sender_id': currentUserId,
+        'recipient_id': widget.mahasiswaId,
+        'content': text,
+      });
+
+      // Catatan: Karena kita sudah menambahkan pesan secara optimis,
+      // notifikasi Realtime dari pesan yang kita kirim sendiri (jika RLS mengizinkan)
+      // kemungkinan akan menyebabkan pesan ganda (DUPLICATE).
+    } on PostgrestException catch (e) {
+      print('Error sending message: $e');
+
+      // 4. ROLLBACK: Hapus pesan yang optimis ditambahkan jika pengiriman gagal
+      setState(() {
+        _messages.removeWhere(
+          (msg) =>
+              msg['content'] == text &&
+              msg['sender_id'] == currentUserId &&
+              msg['created_at'] == newMessage['created_at'],
+        );
+        // Atau cara termudah:
+        // _messages.removeLast();
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengirim pesan: ${e.message}')),
+        );
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // --- WIDGETS ---
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundGrey,
       body: Column(
         children: [
           _buildCustomHeader(),
-          Expanded(
-            child: Container(
-              color: const Color(0xFFF2F2F2),
-              child: ListView.builder(
-                // Tambahkan reverse: true untuk menampilkan pesan dari bawah
-                reverse: true,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
-                itemCount: _messages.length,
-                // Mengakses dari akhir list untuk reverse: true
-                itemBuilder: (context, index) {
-                  final msg = _messages[_messages.length - 1 - index];
-                  return ChatBubble(
-                    text: msg['text'],
-                    time: msg['time'],
-                    isMe: msg['isMe'],
-                  );
-                },
-              ),
-            ),
-          ),
+          Expanded(child: _buildChatArea()),
           _buildInputArea(),
         ],
       ),
     );
   }
 
-  // [MODIFIKASI] Header menggunakan data dinamis
   Widget _buildCustomHeader() {
-    // Gunakan URL foto yang dikirim, atau placeholder jika null/kosong
     final String photoUrl = widget.mahasiswaFoto ?? '';
     final bool hasPhoto = photoUrl.isNotEmpty;
 
@@ -158,7 +255,7 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.grey,
                     ),
@@ -171,17 +268,13 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                                   const Icon(Icons.person, color: Colors.white),
                             ),
                           )
-                        : const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                          ), // Placeholder default
+                        : const Icon(Icons.person, color: Colors.white),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // [DINAMIS] Nama Mahasiswa
                         Text(
                           widget.mahasiswaName,
                           style: AppTextStyles.headerTitle.copyWith(
@@ -189,7 +282,6 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        // [DINAMIS] NIM Mahasiswa
                         Text(
                           "NIM: ${widget.mahasiswaNIM}",
                           style: TextStyle(
@@ -210,62 +302,95 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
     );
   }
 
-  // [MODIFIKASI] Input Area disederhanakan (hanya text & tombol kirim)
+  Widget _buildChatArea() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_messages.isEmpty) {
+      return Center(
+        child: Text(
+          "Mulai percakapan dengan ${widget.mahasiswaName}",
+          style: const TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final message = _messages[index];
+        final bool isMe = message['sender_id'] == _currentUserId;
+        final DateTime time = DateTime.parse(message['created_at']).toLocal();
+
+        return ChatBubble(
+          text: message['content'],
+          time: DateFormat('HH:mm').format(time),
+          isMe: isMe,
+        );
+      },
+    );
+  }
+
   Widget _buildInputArea() {
-    // Tambahkan listener untuk mengubah tombol Mic menjadi tombol Kirim
-    final isTextFieldEmpty = _textController.text.isEmpty;
+    final bool isTextFieldEmpty = _textController.text.trim().isEmpty;
 
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        color: const Color(0xFFF2F2F2),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundGrey,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Input Text
             Expanded(
               child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 15),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(25),
+                  color: AppColors.inputPill,
+                  borderRadius: BorderRadius.circular(30),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  child: TextField(
-                    controller: _textController,
-                    onChanged: (text) {
-                      setState(() {
-                        // Memaksa rebuild untuk mengupdate ikon tombol
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      hintText: "Ketik pesan...",
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    style: const TextStyle(color: Colors.black87),
-                    minLines: 1,
-                    maxLines: 5,
+                child: TextField(
+                  controller: _textController,
+                  onChanged: (text) {
+                    setState(() {});
+                  },
+                  style: AppTextStyles.messageText.copyWith(
+                    color: Colors.black87,
                   ),
+                  decoration: const InputDecoration(
+                    hintText: 'Tulis pesan...',
+                    hintStyle: TextStyle(color: Colors.grey),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  minLines: 1,
+                  maxLines: 5,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-
-            // Tombol Kirim (Send)
-            Container(
-              decoration: BoxDecoration(
-                color: isTextFieldEmpty ? Colors.grey : AppColors.primaryBlue,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.white),
-                onPressed: isTextFieldEmpty
-                    ? null
-                    : _sendMessage, // Panggil _sendMessage
+            // Tombol Kirim (Send Button)
+            GestureDetector(
+              onTap: isTextFieldEmpty ? null : _sendMessage,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isTextFieldEmpty ? Colors.grey : AppColors.primaryBlue,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.send, color: Colors.white, size: 24),
               ),
             ),
           ],
@@ -275,10 +400,8 @@ class _LecturerChatScreenState extends State<LecturerChatScreen> {
   }
 }
 
-// --- Widget Component Terpisah (ChatBubble - Tidak Berubah) ---
-
+// --- Chat Bubble Component ---
 class ChatBubble extends StatelessWidget {
-  // ... (kode ChatBubble tidak berubah) ...
   final String text;
   final String time;
   final bool isMe;
@@ -293,7 +416,6 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    // Ganti warna bubble sesuai pengirim
     final bgColor = isMe ? AppColors.primaryBlue : AppColors.bubbleGrey;
     final txtColor = isMe ? Colors.white : Colors.black87;
 
@@ -328,7 +450,7 @@ class ChatBubble extends StatelessWidget {
                 child: Text(
                   time,
                   style: AppTextStyles.timeText.copyWith(
-                    color: isMe ? Colors.white70 : Colors.grey, // Warna waktu
+                    color: isMe ? Colors.white70 : Colors.grey,
                   ),
                 ),
               ),
