@@ -82,7 +82,7 @@ class LandingScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const LoginScreen(null),
+                                  builder: (context) => const LoginScreen(),
                                 ),
                               );
                             },
