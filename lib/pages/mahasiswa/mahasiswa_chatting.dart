@@ -21,7 +21,7 @@ final chatDetailStreamProvider = StreamProvider.autoDispose
       return supabase
           .from('messages')
           .stream(primaryKey: ['id'])
-          .order('created_at', ascending: false) //urutin pesan
+          .order('created_at', ascending: false)
           .map((messages) {
             return messages.where((msg) {
               final sender = msg['sender_id'];
@@ -52,6 +52,8 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  // ignore: unused_field
   bool _isTyping = false;
 
   @override
@@ -62,6 +64,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _isTyping = _textController.text.isNotEmpty;
       });
     });
+
+    _markMessagesAsRead();
   }
 
   @override
@@ -69,6 +73,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Fungsi: Update is_read = true di database
+  Future<void> _markMessagesAsRead() async {
+    final myUserId = supabase.auth.currentUser?.id;
+    if (myUserId == null) return;
+
+    try {
+      await supabase
+          .from('messages')
+          .update({'is_read': true})
+          .eq('recipient_id', myUserId)
+          .eq('sender_id', widget.partnerId)
+          .eq('is_read', false);
+    } catch (e) {
+      debugPrint("Gagal update read status: $e");
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -86,6 +107,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         'content': text,
         'sender_id': myUserId,
         'recipient_id': widget.partnerId,
+        'is_read': false,
       });
     } catch (e) {
       if (mounted) {
@@ -105,10 +127,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  // Widget Icon Status (Centang)
+  Widget _buildStatusIcon(bool isRead) {
+    if (isRead) {
+      return const Icon(Icons.done_all, size: 16, color: Colors.blue);
+    } else {
+      return const Icon(Icons.done_all, size: 16, color: Colors.grey);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatAsync = ref.watch(chatDetailStreamProvider(widget.partnerId));
     final myUserId = supabase.auth.currentUser?.id;
+
+    // 2. Realtime Listener: Jika ada pesan baru masuk saat layar terbuka, tandai terbaca
+    ref.listen(chatDetailStreamProvider(widget.partnerId), (previous, next) {
+      next.whenData((messages) {
+        final hasUnread = messages.any(
+          (msg) =>
+              msg['sender_id'] == widget.partnerId && msg['is_read'] == false,
+        );
+
+        if (hasUnread) {
+          _markMessagesAsRead();
+        }
+      });
+    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -151,10 +196,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 error: (err, stack) => Center(child: Text('Error: $err')),
                 data: (messages) {
                   if (messages.isEmpty) {
-                    return const Center(child: Text("Mulai percakapan..."));
+                    return const Center(child: Text("Start Conversation"));
                   }
 
-                  // ✅ FIX: Reverse Scroll View (Bottom to Top)
+                  // ListView Reverse (Bottom to Top)
                   return ListView.builder(
                     controller: _scrollController,
                     reverse: true,
@@ -163,6 +208,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     itemBuilder: (context, index) {
                       final msg = messages[index];
                       final isMe = msg['sender_id'] == myUserId;
+                      final isRead = msg['is_read'] ?? false;
 
                       return Align(
                         alignment: isMe
@@ -206,12 +252,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                _formatTime(msg['created_at']),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey[600],
-                                ),
+
+                              // Row Waktu & Status Centang
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _formatTime(msg['created_at']),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (isMe) ...[
+                                    const SizedBox(width: 4),
+                                    _buildStatusIcon(isRead),
+                                  ],
+                                ],
                               ),
                             ],
                           ),
@@ -223,10 +280,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
           ),
-          // Input Area
+
+          // Input Area Fixed
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             color: Colors.white,
+            padding: EdgeInsets.only(
+              left: 8,
+              right: 8,
+              top: 10,
+              bottom: 25 + MediaQuery.of(context).padding.bottom,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -235,7 +298,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     minLines: 1,
                     maxLines: 5,
                     decoration: InputDecoration(
-                      hintText: "Type a message...",
+                      hintText: "Write a Message...",
                       filled: true,
                       fillColor: Colors.grey[100],
                       contentPadding: const EdgeInsets.symmetric(
@@ -250,16 +313,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
+
+                // TOMBOL KIRIM (Permanen)
                 CircleAvatar(
                   backgroundColor: AppColors.micBlue,
                   radius: 24,
                   child: IconButton(
-                    icon: Icon(
-                      _isTyping ? Icons.send : Icons.mic,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    onPressed: _isTyping ? _sendMessage : () {},
+                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                    onPressed: _sendMessage,
                   ),
                 ),
               ],
