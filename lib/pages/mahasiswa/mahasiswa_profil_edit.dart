@@ -239,141 +239,131 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  // Delete Photo
   void _deletePhoto() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Foto Profil'),
-        content: const Text('Apakah Anda yakin ingin menghapus foto profil?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _pickedFile = null;
-                _pickedImageBytes = null;
-                _currentPhotoUrl = null;
-                _photoDeleted = true;
-              });
-              Navigator.pop(context);
-              _showSnackBar('Foto profil akan dihapus saat menyimpan', isError: false);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      _photoDeleted = true;
+      _pickedFile = null;
+      _pickedImageBytes = null;
+      _currentPhotoUrl = null;
+    });
+
+    _showSnackBar("Foto profil dihapus.", isError: false);
   }
 
-  // Upload Photo
-  Future<String?> _uploadPhoto(dynamic fileOrBytes, String userId) async {
+  // DELETE FOTO DARI STORAGE
+  Future<void> _deletePhotoFromStorage(String url) async {
     try {
-      final fileExt = kIsWeb
-          ? _pickedFile!.name.split('.').last
-          : (fileOrBytes as File).path.split('.').last;
+      final uri = Uri.parse(url);
+      final index = uri.path.indexOf('image_mahasiswa/');
+      if (index == -1) return;
 
-      final fileName = '$userId.$fileExt';
+      final path = uri.path.substring(index + 'image_mahasiswa/'.length);
+
+      await supabase.storage
+          .from('image_mahasiswa')
+          .remove([path]);
+    } catch (_) {}
+  }
+
+  Future<String?> _uploadPhoto(dynamic fileData, String userId) async {
+    try {
+      final ext = kIsWeb
+          ? _pickedFile!.name.split('.').last
+          : (fileData as File).path.split('.').last;
+
+      final fileName =
+          '${userId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
       final filePath = 'mahasiswa_photos/$fileName';
 
-      await supabase.storage.from('image_mahasiswa').uploadBinary(
-            filePath,
-            fileOrBytes,
-            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
-          );
+      if (kIsWeb) {
+        await supabase.storage.from('image_mahasiswa').uploadBinary(
+          filePath,
+          fileData as Uint8List,
+          fileOptions: const FileOptions(
+            upsert: false,
+            cacheControl: 'no-cache',
+          ),
+        );
+      } else {
+        await supabase.storage.from('image_mahasiswa').upload(
+          filePath,
+          fileData as File,
+          fileOptions: const FileOptions(
+            upsert: false,
+            cacheControl: 'no-cache',
+          ),
+        );
+      }
 
-      final publicUrl =
-          supabase.storage.from('image_mahasiswa').getPublicUrl(filePath);
-      return publicUrl;
-    } on StorageException catch (e) {
-      _showSnackBar("Gagal mengunggah foto (Storage Error: ${e.message}).");
-      return null;
+      return supabase.storage
+          .from('image_mahasiswa')
+          .getPublicUrl(filePath);
     } catch (e) {
-      _showSnackBar("Gagal mengunggah foto: ${e.toString()}");
+      _showSnackBar("Upload foto gagal: $e");
       return null;
     }
   }
 
-  // Upsert Profile
-  Future<void> _upsertProfile(String? photoUrl) async {
+  // UPSERT PROFILE (FIXED)
+  Future<void> _upsertProfile(String? newPhotoUrl) async {
     final userId = supabase.auth.currentUser?.id;
-    if (userId == null) {
-      _showSnackBar("Autentikasi gagal. Silakan login kembali.");
-      return;
-    }
+    if (userId == null) return;
 
-    final Map<String, dynamic> dataToUpsert = {
+    final oldData = await supabase
+        .from('mahasiswa')
+        .select('foto_mahasiswa')
+        .eq('id', userId)
+        .maybeSingle();
+
+    final oldPhotoUrl = oldData?['foto_mahasiswa'];
+
+    await supabase.from('mahasiswa').upsert({
       'id': userId,
       'nama_mahasiswa': _nameController.text.trim(),
       'nim': _nimController.text.trim(),
       'fakultas': _facultyController.text.trim(),
       'prodi': _studyController.text.trim(),
-    };
+      'foto_mahasiswa': _photoDeleted ? null : newPhotoUrl ?? oldPhotoUrl,
+    });
 
-    if (_photoDeleted) {
-      dataToUpsert['foto_mahasiswa'] = null as dynamic;
-    } else if (photoUrl != null) {
-      dataToUpsert['foto_mahasiswa'] = photoUrl;
+    if ((_photoDeleted || newPhotoUrl != null) && oldPhotoUrl != null) {
+      await _deletePhotoFromStorage(oldPhotoUrl);
     }
 
-    try {
-      await supabase.from('mahasiswa').upsert(dataToUpsert);
-      _showSnackBar("Profil berhasil diperbarui!", isError: false);
-      
-      if (_photoDeleted) {
-        setState(() => _currentPhotoUrl = null);
-      } else if (photoUrl != null) {
-        setState(() => _currentPhotoUrl = photoUrl);
-      }
-      
-      Navigator.pop(context);
-    } on PostgrestException catch (e) {
-      String errorMessage = "Gagal menyimpan data: ${e.message}";
-      if (e.code == '23505') {
-        errorMessage = "NIM yang Anda masukkan sudah digunakan.";
-      } else if (e.code == '23502') {
-        errorMessage = "Gagal: Pastikan semua kolom terisi dengan benar.";
-      }
-      _showSnackBar(errorMessage);
-    } catch (e) {
-      _showSnackBar("Terjadi kesalahan tak terduga saat menyimpan data.");
-    }
+    _showSnackBar("Profil berhasil diperbarui", isError: false);
+    Navigator.pop(context);
   }
 
-  // Handle Save
+  // HANDLE SAVE (FIXED)
   Future<void> _handleSave() async {
-    if (_nameController.text.trim().isEmpty ||
-        _nimController.text.trim().isEmpty ||
-        _facultyController.text.trim().isEmpty ||
-        _studyController.text.trim().isEmpty) {
-      _showSnackBar(
-        "Mohon lengkapi semua data profil (Nama, NIM, Fakultas, Prodi).",
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
-    String? photoUrl;
+    String? newPhotoUrl;
 
+    // JIKA ADA FOTO BARU & TIDAK DIHAPUS
     if (_pickedFile != null && !_photoDeleted) {
-      final userId = supabase.auth.currentUser?.id;
-      if (userId != null) {
-        final fileData = kIsWeb ? _pickedImageBytes! : File(_pickedFile!.path);
+      final userId = supabase.auth.currentUser!.id;
 
-        photoUrl = await _uploadPhoto(fileData, userId);
-        if (photoUrl == null) {
-          setState(() => _isLoading = false);
-          return;
-        }
+      final fileData = kIsWeb
+          ? _pickedImageBytes
+          : File(_pickedFile!.path);
+
+      if (fileData == null) {
+        setState(() => _isLoading = false);
+        _showSnackBar("File foto tidak valid.");
+        return;
+      }
+
+      newPhotoUrl = await _uploadPhoto(fileData, userId);
+
+      if (newPhotoUrl == null) {
+        setState(() => _isLoading = false);
+        return;
       }
     }
 
-    await _upsertProfile(photoUrl);
+    await _upsertProfile(newPhotoUrl);
+
     setState(() => _isLoading = false);
   }
 
