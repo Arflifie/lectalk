@@ -104,10 +104,10 @@ class _MahasiswaDataContactState extends State<MahasiswaDataContact> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E3A5F),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // leading: IconButton(
+        //   icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+        //   onPressed: () => Navigator.pop(context),
+        // ),
         title: const Text(
           'Kontak Mahasiswa',
           style: TextStyle(

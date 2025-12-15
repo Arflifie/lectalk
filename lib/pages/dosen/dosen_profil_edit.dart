@@ -101,21 +101,25 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
   }
 
   // REVISI: Menerima data dinamis (File atau Uint8List)
-  Future<String?> _uploadPhoto(dynamic fileOrBytes, String userId) async {
-    try {
-      final fileExt = kIsWeb
-          ? _pickedFile!.name.split('.').last
-          : (fileOrBytes as File).path.split('.').last;
+  Future<String?> _uploadPhoto(String userId) async {
+    if (_pickedFile == null) return null;
 
+    try {
+      // 1. Tentukan Ekstensi dan Path
+      final fileExt = _pickedFile!.name.split('.').last;
       final fileName = '$userId.$fileExt';
       final filePath = 'dosen_photos/$fileName';
 
-      // Menggunakan uploadBinary yang mendukung File (Mobile) dan Uint8List (Web)
+      // 2. Baca file sebagai bytes (XFile mendukung ini di Web/Mobile)
+      // NOTE: Ini adalah kunci untuk menghindari error 'subtype of Uint8List'
+      final Uint8List fileBytes = await _pickedFile!.readAsBytes();
+
+      // 3. Gunakan uploadBinary dengan Uint8List
       await supabase.storage
           .from('image_dosen')
           .uploadBinary(
             filePath,
-            fileOrBytes,
+            fileBytes, // Mengirimkan Uint8List, yang aman di Web dan Mobile
             fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
           );
 
@@ -189,12 +193,12 @@ class _EditProfileDosenPageState extends State<EditProfileDosenPage> {
     if (_pickedFile != null) {
       final userId = supabase.auth.currentUser?.id;
       if (userId != null) {
-        // Tentukan data yang akan diupload
-        final fileData = kIsWeb
-            ? _pickedImageBytes! // Uint8List untuk Web
-            : File(_pickedFile!.path); // File untuk Mobile
+        // // Tentukan data yang akan diupload
+        // final fileData = kIsWeb
+        //     ? _pickedImageBytes! // Uint8List untuk Web
+        //     : File(_pickedFile!.path); // File untuk Mobile
 
-        photoUrl = await _uploadPhoto(fileData, userId);
+        photoUrl = await _uploadPhoto(userId);
         if (photoUrl == null) {
           setState(() => _isLoading = false);
           return;
