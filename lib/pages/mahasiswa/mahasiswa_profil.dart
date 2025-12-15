@@ -38,9 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final data = await supabase
           .from('mahasiswa')
-          .select(
-            'nama_mahasiswa, nim, prodi, fakultas, foto_mahasiswa',
-          )
+          .select('nama_mahasiswa, nim, prodi, fakultas, foto_mahasiswa')
           .eq('id', userId)
           .maybeSingle();
 
@@ -71,10 +69,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           title: const Text(
             'Konfirmasi Logout',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
           ),
           content: const Text(
             'Apakah Anda yakin ingin keluar dari akun?',
@@ -137,9 +132,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Arahkan pengguna ke halaman LoginScreen, hapus semua route sebelumnya
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(null),
-        ),
+        MaterialPageRoute(builder: (context) => const LoginScreen(null)),
         (Route<dynamic> route) => false,
       );
     } catch (e) {
@@ -192,10 +185,12 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     // Default values
-    final namaMahasiswa = _mahasiswaProfile?['nama_mahasiswa'] ?? 'Nama Belum Diisi';
+    final namaMahasiswa =
+        _mahasiswaProfile?['nama_mahasiswa'] ?? 'Nama Belum Diisi';
     final nimMahasiswa = _mahasiswaProfile?['nim'] ?? 'NIM Belum Diisi';
     final prodiMahasiswa = _mahasiswaProfile?['prodi'] ?? 'Prodi Belum Diisi';
-    final fakultasMahasiswa = _mahasiswaProfile?['fakultas'] ?? 'Fakultas Belum Diisi';
+    final fakultasMahasiswa =
+        _mahasiswaProfile?['fakultas'] ?? 'Fakultas Belum Diisi';
     final fotoMahasiswaUrl = _mahasiswaProfile?['foto_mahasiswa'];
 
     return Scaffold(
@@ -354,7 +349,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ),
                                     const SizedBox(width: 10),
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: const [
                                         Text(
                                           'Universitas Jambi',
@@ -443,7 +439,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const EditProfilePage(),
+                                      builder: (context) =>
+                                          const EditProfilePage(),
                                     ),
                                   ).then((_) => _loadProfileData());
                                 },
@@ -495,20 +492,23 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ? Image.network(
                                     fotoMahasiswaUrl,
                                     fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return const Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const Icon(
-                                          Icons.person,
-                                          size: 60,
-                                          color: Colors.white,
-                                        ),
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          );
+                                        },
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
+                                              Icons.person,
+                                              size: 60,
+                                              color: Colors.white,
+                                            ),
                                   )
                                 : const Icon(
                                     Icons.person,

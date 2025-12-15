@@ -54,9 +54,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final data = await supabase
           .from('mahasiswa')
-          .select(
-            'nama_mahasiswa, nim, fakultas, prodi, foto_mahasiswa',
-          )
+          .select('nama_mahasiswa, nim, fakultas, prodi, foto_mahasiswa')
           .eq('id', userId)
           .maybeSingle();
 
@@ -76,8 +74,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // Show Photo Options Modal
   void _showPhotoOptions() {
-    final bool hasPhoto = (_pickedFile != null || 
-                          (_currentPhotoUrl != null && !_photoDeleted));
+    final bool hasPhoto =
+        (_pickedFile != null || (_currentPhotoUrl != null && !_photoDeleted));
 
     showModalBottomSheet(
       context: context,
@@ -194,10 +192,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         child: Stack(
           children: [
             Center(
-              child: photoWidget ??
+              child:
+                  photoWidget ??
                   (photoUrl != null
                       ? Image.network(photoUrl, fit: BoxFit.contain)
-                      : const Icon(Icons.person, size: 100, color: Colors.white)),
+                      : const Icon(
+                          Icons.person,
+                          size: 100,
+                          color: Colors.white,
+                        )),
             ),
             Positioned(
               top: 10,
@@ -259,9 +262,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       final path = uri.path.substring(index + 'image_mahasiswa/'.length);
 
-      await supabase.storage
-          .from('image_mahasiswa')
-          .remove([path]);
+      await supabase.storage.from('image_mahasiswa').remove([path]);
     } catch (_) {}
   }
 
@@ -276,28 +277,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final filePath = 'mahasiswa_photos/$fileName';
 
       if (kIsWeb) {
-        await supabase.storage.from('image_mahasiswa').uploadBinary(
-          filePath,
-          fileData as Uint8List,
-          fileOptions: const FileOptions(
-            upsert: false,
-            cacheControl: 'no-cache',
-          ),
-        );
+        await supabase.storage
+            .from('image_mahasiswa')
+            .uploadBinary(
+              filePath,
+              fileData as Uint8List,
+              fileOptions: const FileOptions(
+                upsert: false,
+                cacheControl: 'no-cache',
+              ),
+            );
       } else {
-        await supabase.storage.from('image_mahasiswa').upload(
-          filePath,
-          fileData as File,
-          fileOptions: const FileOptions(
-            upsert: false,
-            cacheControl: 'no-cache',
-          ),
-        );
+        await supabase.storage
+            .from('image_mahasiswa')
+            .upload(
+              filePath,
+              fileData as File,
+              fileOptions: const FileOptions(
+                upsert: false,
+                cacheControl: 'no-cache',
+              ),
+            );
       }
 
-      return supabase.storage
-          .from('image_mahasiswa')
-          .getPublicUrl(filePath);
+      return supabase.storage.from('image_mahasiswa').getPublicUrl(filePath);
     } catch (e) {
       _showSnackBar("Upload foto gagal: $e");
       return null;
@@ -344,9 +347,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_pickedFile != null && !_photoDeleted) {
       final userId = supabase.auth.currentUser!.id;
 
-      final fileData = kIsWeb
-          ? _pickedImageBytes
-          : File(_pickedFile!.path);
+      final fileData = kIsWeb ? _pickedImageBytes : File(_pickedFile!.path);
 
       if (fileData == null) {
         setState(() => _isLoading = false);
@@ -373,8 +374,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor:
-              isError ? Colors.red.shade700 : Colors.green.shade700,
+          backgroundColor: isError
+              ? Colors.red.shade700
+              : Colors.green.shade700,
         ),
       );
     }
@@ -458,8 +460,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
               TextField(
                 controller: controller,
                 focusNode: focusNode,
-                keyboardType:
-                    isNumeric ? TextInputType.number : TextInputType.text,
+                keyboardType: isNumeric
+                    ? TextInputType.number
+                    : TextInputType.text,
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
@@ -596,13 +599,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: Column(
                   children: [
                     // Form Fields
-                    _buildCustomTextField("Nama Lengkap", _nameController),
+                    _buildCustomTextField("Full Name", _nameController),
                     const SizedBox(height: 15),
-                    _buildCustomTextField("NIM", _nimController, isNumeric: true),
+                    _buildCustomTextField(
+                      "NIM",
+                      _nimController,
+                      isNumeric: true,
+                    ),
                     const SizedBox(height: 15),
-                    _buildCustomTextField("Fakultas", _facultyController),
+                    _buildCustomTextField("Faculty", _facultyController),
                     const SizedBox(height: 15),
-                    _buildCustomTextField("Program Studi", _studyController),
+                    _buildCustomTextField("Study program", _studyController),
 
                     const SizedBox(height: 40),
 
@@ -629,7 +636,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 ),
                               )
                             : const Text(
-                                "Simpan",
+                                "Save",
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.white,
@@ -673,7 +680,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       children: [
                         // Foto
                         profileImageWidget,
-                        
+
                         // Overlay dengan icon edit (hanya saat pressed)
                         Material(
                           color: Colors.transparent,

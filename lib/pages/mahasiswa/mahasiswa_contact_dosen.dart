@@ -32,7 +32,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
   final List<String> _filters = [
     'All',
     'Sistem Informasi',
-    'Teknik Informatika',
+    'Informatika',
     'Manajemen',
     'Ilmu Hukum',
     // Tambahkan prodi lain sesuai kebutuhan
@@ -62,7 +62,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
                     onChanged: (value) =>
                         setState(() => _searchQuery = value.toLowerCase()),
                     decoration: InputDecoration(
-                      hintText: "Cari Nama, NIP, atau Prodi...",
+                      hintText: "Search for Name, NIP, or Study Program...",
                       prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                       filled: true,
                       fillColor: Colors.grey[100],
@@ -189,7 +189,7 @@ class _LecturerDataPageState extends ConsumerState<LecturerDataPage> {
                                 color: Colors.grey,
                               ),
                               SizedBox(height: 10),
-                              Text("Tidak ada dosen ditemukan"),
+                              Text("No lecturers found"),
                             ],
                           ),
                         );
