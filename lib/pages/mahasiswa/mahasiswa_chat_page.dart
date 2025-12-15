@@ -201,7 +201,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       onChanged: (v) =>
                           setState(() => _searchQuery = v.toLowerCase()),
                       decoration: const InputDecoration(
-                        hintText: "Cari obrolan...",
+                        hintText: "Search Conversation...",
                         border: InputBorder.none,
                         suffixIcon: Icon(Icons.search, color: Colors.grey),
                         contentPadding: EdgeInsets.zero,
@@ -228,7 +228,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       if (filteredChats.isEmpty) {
                         return const Center(
                           child: Text(
-                            "Belum ada pesan",
+                            "No messages yet",
                             style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                         );
@@ -454,9 +454,3 @@ class _ChatListItem extends ConsumerWidget {
     );
   }
 }
-
-// ==========================================
-// PLACEHOLDER CHAT SCREEN
-// ==========================================
-// JIKA Anda sudah punya file `chat_screen.dart` yang asli,
-// HAPUS Class ChatScreen di bawah ini, dan import file Anda di paling atas.
