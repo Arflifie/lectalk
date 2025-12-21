@@ -5,6 +5,13 @@ The app aims to separate **professional academic communication** from personal m
 
 ---
 
+## 🎥 Demo Video
+
+👉 **Watch the application demo here:**  
+https://youtu.be/Q_S_5ju0p1s
+
+---
+
 ## 🎯 Project Objectives
 
 - Separate personal and academic communication
